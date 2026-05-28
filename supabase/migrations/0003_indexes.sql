@@ -1,0 +1,15 @@
+create index if not exists idx_business_members_business_user on business_members(business_id, user_id);
+create index if not exists idx_social_connections_business_platform on social_connections(business_id, platform);
+create index if not exists idx_capture_campaigns_business_status on capture_campaigns(business_id, status, updated_at desc);
+create index if not exists idx_bot_scenarios_campaign_active on bot_scenarios(campaign_id, is_active);
+create index if not exists idx_products_business on products(business_id);
+create index if not exists idx_price_plans_product on price_plans(product_id);
+create index if not exists idx_content_ideas_business_status on content_ideas(business_id, status, created_at desc);
+create index if not exists idx_content_assets_business_status on content_assets(business_id, status, created_at desc);
+create index if not exists idx_publications_business_scheduled on publications(business_id, scheduled_at);
+create index if not exists idx_publications_status on publications(status);
+create index if not exists idx_leads_business_stage on leads(business_id, stage, created_at desc);
+create index if not exists idx_lead_events_business_created on lead_events(business_id, created_at desc);
+create index if not exists idx_automation_runs_flow_created on automation_runs(flow_id, created_at desc);
+create index if not exists idx_ai_runs_business_created on ai_runs(business_id, created_at desc);
+create index if not exists idx_analytics_snapshots_business_date on analytics_snapshots(business_id, snapshot_date desc);

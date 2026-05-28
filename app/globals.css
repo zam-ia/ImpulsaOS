@@ -1,0 +1,290 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --color-ink: oklch(19% 0.018 260);
+  --color-paper: oklch(97% 0.006 260);
+  --color-surface: oklch(99% 0.003 260);
+  --color-line: oklch(90% 0.012 260);
+  --color-muted: oklch(45% 0.025 260);
+  --color-accent: oklch(56% 0.145 252);
+  --color-accent-deep: oklch(48% 0.15 252);
+  --color-risk: oklch(61% 0.135 38);
+  --font-body: "Aptos", "Segoe UI Variable", "Segoe UI", sans-serif;
+  --font-display: "Aptos Display", "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+::selection {
+  background: rgba(222, 107, 72, 0.24);
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50;
+    transition-property: transform, background-color, box-shadow, opacity;
+    transition-duration: 160ms;
+    transition-timing-function: var(--ease-out-strong);
+  }
+
+  .btn-secondary {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-50;
+    background-color: var(--color-surface);
+    transition-property: transform, background-color, border-color, box-shadow, opacity;
+    transition-duration: 160ms;
+    transition-timing-function: var(--ease-out-strong);
+  }
+
+  .btn-danger {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-coral px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50;
+    transition-property: transform, background-color, box-shadow, opacity;
+    transition-duration: 160ms;
+    transition-timing-function: var(--ease-out-strong);
+  }
+
+  .btn-primary:active,
+  .btn-secondary:active,
+  .btn-danger:active {
+    transform: scale(0.97);
+  }
+
+  .btn-primary:focus-visible,
+  .btn-secondary:focus-visible,
+  .btn-danger:focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--color-accent) 36%, transparent);
+    outline-offset: 2px;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-ink/15 bg-white px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/35 focus:border-moss focus:ring-2 focus:ring-moss/15;
+    background-color: var(--color-surface);
+    transition-property: border-color, box-shadow, background-color;
+    transition-duration: 150ms;
+    transition-timing-function: var(--ease-out-strong);
+  }
+
+  .textarea {
+    @apply min-h-28 w-full rounded-xl border border-ink/15 bg-white px-3 py-2 text-sm leading-6 text-ink outline-none placeholder:text-ink/35 focus:border-moss focus:ring-2 focus:ring-moss/15;
+    background-color: var(--color-surface);
+    transition-property: border-color, box-shadow, background-color;
+    transition-duration: 150ms;
+    transition-timing-function: var(--ease-out-strong);
+  }
+
+  .select {
+    @apply w-full rounded-xl border border-ink/15 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-moss focus:ring-2 focus:ring-moss/15;
+    background-color: var(--color-surface);
+    transition-property: border-color, box-shadow, background-color;
+    transition-duration: 150ms;
+    transition-timing-function: var(--ease-out-strong);
+  }
+
+  .table-cell {
+    @apply px-4 py-3 text-sm align-top;
+  }
+}
+
+@layer utilities {
+  .motion-page-header {
+    animation: page-header-in 260ms var(--ease-out-strong) both;
+  }
+
+  .motion-panel {
+    transform-origin: center top;
+    transition-property: transform, box-shadow, border-color, background-color, opacity;
+    transition-duration: 180ms;
+    transition-timing-function: var(--ease-out-strong);
+    animation: panel-in 240ms var(--ease-out-strong) both;
+
+    @starting-style {
+      opacity: 0;
+      transform: translateY(8px) scale(0.985);
+    }
+  }
+
+  .motion-stat {
+    transition-property: transform, box-shadow, border-color;
+    transition-duration: 180ms;
+    transition-timing-function: var(--ease-out-strong);
+  }
+
+  .motion-icon {
+    transition-property: transform, background-color, color;
+    transition-duration: 180ms;
+    transition-timing-function: var(--ease-out-strong);
+  }
+
+  .motion-badge {
+    transition-property: transform, background-color, color, opacity;
+    transition-duration: 150ms;
+    transition-timing-function: var(--ease-out-strong);
+  }
+
+  .nav-link {
+    transition-property: transform, background-color, color;
+    transition-duration: 150ms;
+    transition-timing-function: var(--ease-out-strong);
+  }
+
+  .pressable {
+    transition-property: transform, background-color, border-color, box-shadow, opacity;
+    transition-duration: 160ms;
+    transition-timing-function: var(--ease-out-strong);
+  }
+
+  .pressable:active {
+    transform: scale(0.98);
+  }
+
+  .progress-fill {
+    transition-property: width;
+    transition-duration: 260ms;
+    transition-timing-function: var(--ease-out-strong);
+  }
+
+  .stagger-list > * {
+    animation: list-item-in 220ms var(--ease-out-strong) both;
+  }
+
+  .stagger-list > *:nth-child(1) {
+    animation-delay: 0ms;
+  }
+
+  .stagger-list > *:nth-child(2) {
+    animation-delay: 35ms;
+  }
+
+  .stagger-list > *:nth-child(3) {
+    animation-delay: 70ms;
+  }
+
+  .stagger-list > *:nth-child(4) {
+    animation-delay: 105ms;
+  }
+
+  .stagger-list > *:nth-child(5) {
+    animation-delay: 140ms;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    background-color: var(--color-accent-deep);
+    box-shadow: 0 10px 24px color-mix(in oklch, var(--color-accent) 20%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary:hover {
+    background-color: color-mix(in oklch, var(--color-ink) 4%, white);
+    border-color: color-mix(in oklch, var(--color-ink) 16%, transparent);
+    box-shadow: 0 8px 20px color-mix(in oklch, var(--color-ink) 7%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .btn-danger:hover {
+    background-color: color-mix(in oklch, var(--color-risk) 92%, black);
+    box-shadow: 0 10px 24px color-mix(in oklch, var(--color-risk) 18%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .motion-panel:hover,
+  .motion-stat:hover {
+    border-color: color-mix(in oklch, var(--color-accent) 18%, transparent);
+    box-shadow: 0 4px 24px -4px color-mix(in oklch, var(--color-ink) 14%, transparent), 0 1px 3px color-mix(in oklch, var(--color-ink) 7%, transparent);
+  }
+
+  .nav-link:hover {
+    transform: translateX(2px);
+  }
+
+  .nav-link-idle:hover {
+    background-color: color-mix(in oklch, var(--color-ink) 5%, transparent);
+    color: var(--color-ink);
+  }
+
+  .pressable:hover {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes page-header-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes list-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+
+  .motion-panel,
+  .motion-page-header,
+  .stagger-list > * {
+    transform: none !important;
+  }
+}
