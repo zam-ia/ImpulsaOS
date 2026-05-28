@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { CheckCircle2, ExternalLink, Link2, MessageCircle, PlugZap, RadioTower, Save, ShieldCheck, Video } from "lucide-react";
+import { CheckCircle2, ExternalLink, Link2, MessageCircle, PlugZap, Plus, RadioTower, Save, ShieldCheck, Video } from "lucide-react";
+import { Modal } from "@/components/modal";
 import { Field, PageHeader, Panel, PanelHeader, StatusBadge } from "@/components/ui";
 import { useWorkspace } from "@/lib/store";
 import type { SocialConnection, SocialPlatform } from "@/lib/types";
@@ -45,10 +46,24 @@ function autonomyText(connection: SocialConnection) {
 }
 
 export default function ConnectionsPage() {
-  const { state, updateConnection } = useWorkspace();
+  const { state, addConnection, updateConnection } = useWorkspace();
   const [drafts, setDrafts] = useState<Record<string, SocialConnection>>(
     Object.fromEntries(state.connections.map((connection) => [connection.id, connection]))
   );
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newConnection, setNewConnection] = useState({
+    platform: "facebook" as SocialPlatform,
+    label: "Nueva fan page",
+    handle: "",
+    profileUrl: "",
+    externalId: "",
+    publishMode: "manual" as SocialConnection["publishMode"],
+    tokenStatus: "missing" as SocialConnection["tokenStatus"],
+    isActive: false,
+    notes: "",
+    pageSlot: "Pagina nueva",
+    contentRole: "prueba" as NonNullable<SocialConnection["contentRole"]>
+  });
   const [campaign, setCampaign] = useState("semana_01");
   const [selectedProductId, setSelectedProductId] = useState(state.products[0]?.id ?? "");
   const selectedProduct = state.products.find((product) => product.id === selectedProductId);
@@ -77,12 +92,36 @@ export default function ConnectionsPage() {
     updateConnection(connectionId, drafts[connectionId]);
   }
 
+  function createConnection(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    addConnection(newConnection);
+    setShowAddModal(false);
+    setNewConnection({
+      platform: "facebook",
+      label: "Nueva fan page",
+      handle: "",
+      profileUrl: "",
+      externalId: "",
+      publishMode: "manual",
+      tokenStatus: "missing",
+      isActive: false,
+      notes: "",
+      pageSlot: "Pagina nueva",
+      contentRole: "prueba"
+    });
+  }
+
   return (
     <>
       <PageHeader
         title="Conexiones"
         description="Aqui se configuran los enlaces y credenciales de Facebook, Instagram, TikTok y WhatsApp. El flujo autonomo decide por canal: publicar por API, dejar checklist manual o hacer handoff a WhatsApp."
-      />
+      >
+        <button className="btn-primary" type="button" onClick={() => setShowAddModal(true)}>
+          <Plus className="h-4 w-4" />
+          Agregar pagina
+        </button>
+      </PageHeader>
 
       <div className="mb-6 grid gap-4 lg:grid-cols-3">
         <Panel className="p-4">
@@ -240,6 +279,36 @@ export default function ConnectionsPage() {
                         <option value="false">No</option>
                       </select>
                     </Field>
+                    <Field label="Rol de contenido">
+                      <select
+                        className="select"
+                        value={draft.contentRole ?? "principal"}
+                        onChange={(event) =>
+                          setDrafts((current) => ({
+                            ...current,
+                            [connection.id]: { ...draft, contentRole: event.target.value as SocialConnection["contentRole"] }
+                          }))
+                        }
+                      >
+                        <option value="principal">Principal</option>
+                        <option value="prueba">Pruebas</option>
+                        <option value="nicho">Nicho</option>
+                        <option value="soporte">Soporte</option>
+                      </select>
+                    </Field>
+                    <Field label="Slot / pagina">
+                      <input
+                        className="input"
+                        value={draft.pageSlot ?? ""}
+                        placeholder="Pagina 1, Pagina 2..."
+                        onChange={(event) =>
+                          setDrafts((current) => ({
+                            ...current,
+                            [connection.id]: { ...draft, pageSlot: event.target.value }
+                          }))
+                        }
+                      />
+                    </Field>
                   </div>
 
                   <Field label="Notas operativas">
@@ -319,6 +388,81 @@ export default function ConnectionsPage() {
           </Panel>
         </div>
       </div>
+
+      <Modal
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Agregar pagina o canal"
+        description="Registra fan pages, cuentas o canales que el motor usara para publicar, medir o dejar checklist manual."
+        size="lg"
+      >
+        <form className="grid gap-4" onSubmit={createConnection}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Plataforma">
+              <select
+                className="select"
+                value={newConnection.platform}
+                onChange={(event) => setNewConnection({ ...newConnection, platform: event.target.value as SocialPlatform })}
+              >
+                <option value="facebook">Facebook fan page</option>
+                <option value="instagram">Instagram Business</option>
+                <option value="tiktok">TikTok</option>
+                <option value="whatsapp">WhatsApp</option>
+              </select>
+            </Field>
+            <Field label="Nombre visible">
+              <input className="input" value={newConnection.label} onChange={(event) => setNewConnection({ ...newConnection, label: event.target.value })} />
+            </Field>
+            <Field label="URL">
+              <input className="input" value={newConnection.profileUrl} onChange={(event) => setNewConnection({ ...newConnection, profileUrl: event.target.value })} />
+            </Field>
+            <Field label="Handle">
+              <input className="input" value={newConnection.handle} onChange={(event) => setNewConnection({ ...newConnection, handle: event.target.value })} />
+            </Field>
+            <Field label="ID externo">
+              <input className="input" value={newConnection.externalId} onChange={(event) => setNewConnection({ ...newConnection, externalId: event.target.value })} />
+            </Field>
+            <Field label="Modo">
+              <select
+                className="select"
+                value={newConnection.publishMode}
+                onChange={(event) => setNewConnection({ ...newConnection, publishMode: event.target.value as SocialConnection["publishMode"] })}
+              >
+                <option value="manual">Checklist manual</option>
+                <option value="api">API automatica</option>
+                <option value="handoff">Handoff WhatsApp</option>
+              </select>
+            </Field>
+            <Field label="Slot">
+              <input className="input" value={newConnection.pageSlot} onChange={(event) => setNewConnection({ ...newConnection, pageSlot: event.target.value })} />
+            </Field>
+            <Field label="Rol">
+              <select
+                className="select"
+                value={newConnection.contentRole}
+                onChange={(event) => setNewConnection({ ...newConnection, contentRole: event.target.value as NonNullable<SocialConnection["contentRole"]> })}
+              >
+                <option value="principal">Principal</option>
+                <option value="prueba">Prueba</option>
+                <option value="nicho">Nicho</option>
+                <option value="soporte">Soporte</option>
+              </select>
+            </Field>
+          </div>
+          <Field label="Notas">
+            <textarea className="textarea" value={newConnection.notes} onChange={(event) => setNewConnection({ ...newConnection, notes: event.target.value })} />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <button className="btn-secondary" type="button" onClick={() => setShowAddModal(false)}>
+              Cancelar
+            </button>
+            <button className="btn-primary" type="submit">
+              <Save className="h-4 w-4" />
+              Guardar canal
+            </button>
+          </div>
+        </form>
+      </Modal>
     </>
   );
 }

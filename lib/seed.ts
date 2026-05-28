@@ -201,7 +201,7 @@ export const initialWorkspace: WorkspaceState = {
       id: "conn_facebook",
       businessId,
       platform: "facebook",
-      label: "Facebook Page",
+      label: "Fan page principal",
       handle: "",
       profileUrl: "",
       externalId: "",
@@ -210,6 +210,38 @@ export const initialWorkspace: WorkspaceState = {
       isActive: false,
       lastCheckedAt: null,
       notes: "Conecta tu página y completa META_PAGE_ID + META_PAGE_ACCESS_TOKEN para publicación automática."
+    },
+    {
+      id: "conn_facebook_2",
+      businessId,
+      platform: "facebook",
+      label: "Fan page secundaria",
+      handle: "",
+      profileUrl: "",
+      externalId: "",
+      publishMode: "manual",
+      tokenStatus: "missing",
+      isActive: false,
+      lastCheckedAt: null,
+      notes: "Pagina para probar angulos, reciclar contenido y publicar variaciones por nicho.",
+      pageSlot: "Pagina 2",
+      contentRole: "prueba"
+    },
+    {
+      id: "conn_facebook_3",
+      businessId,
+      platform: "facebook",
+      label: "Fan page nicho",
+      handle: "",
+      profileUrl: "",
+      externalId: "",
+      publishMode: "manual",
+      tokenStatus: "missing",
+      isActive: false,
+      lastCheckedAt: null,
+      notes: "Pagina dedicada a una audiencia o zona especifica para medir demanda organica.",
+      pageSlot: "Pagina 3",
+      contentRole: "nicho"
     },
     {
       id: "conn_instagram",
@@ -254,6 +286,62 @@ export const initialWorkspace: WorkspaceState = {
       notes: "El MVP usa links trackeados wa.me y respuestas sugeridas para proteger el número."
     }
   ],
+  competitorProfiles: [
+    {
+      id: "creator_demo_1",
+      businessId,
+      platform: "instagram",
+      name: "Creador referencia autoridad",
+      handle: "@referencia_autoridad",
+      profileUrl: "",
+      niche: "Marketing organico y ventas",
+      notes: "Perfil grande para detectar formatos de autoridad, hooks y pruebas sociales.",
+      trackedFormats: ["reel auditoria", "carrusel educativo", "story CTA"],
+      isActive: true,
+      metricsSnapshot: {
+        postsAnalyzed: 18,
+        avgLikes: 420,
+        avgComments: 34,
+        topFormat: "reel auditoria",
+        topHook: "nos mintieron con este consejo"
+      },
+      createdAt: todayIso(),
+      updatedAt: todayIso()
+    },
+    {
+      id: "creator_demo_2",
+      businessId,
+      platform: "facebook",
+      name: "Fan page competidora local",
+      handle: "@competidor_local",
+      profileUrl: "",
+      niche: "Servicios locales",
+      notes: "Referencia cercana para entender lenguaje, objeciones y CTA que generan comentarios.",
+      trackedFormats: ["post pregunta", "caso antes/despues", "oferta limitada"],
+      isActive: true,
+      metricsSnapshot: {
+        postsAnalyzed: 12,
+        avgLikes: 95,
+        avgComments: 19,
+        topFormat: "post pregunta",
+        topHook: "que harias si"
+      },
+      createdAt: todayIso(),
+      updatedAt: todayIso()
+    }
+  ],
+  researchInsights: [
+    {
+      id: "insight_erex_seed",
+      businessId,
+      source: "erex",
+      title: "Base EREX cargada",
+      summary: "Se detectaron plantillas de storytelling, guionizacion, hooks, escala de viralidad, CTAs y ad copy.",
+      recommendation: "Usa cada pieza con checklist: gancho, problema, oportunidad, pasos, prueba y CTA con palabra clave.",
+      confidence: 88,
+      createdAt: todayIso()
+    }
+  ],
   captureCampaigns: [
     {
       id: "capture_weekly_demo",
@@ -262,6 +350,9 @@ export const initialWorkspace: WorkspaceState = {
       objective: "captar_leads",
       productId: productB,
       channels: ["instagram_post", "instagram_reel", "facebook", "tiktok", "whatsapp"],
+      targetConnectionIds: ["conn_facebook", "conn_facebook_2", "conn_facebook_3", "conn_instagram", "conn_whatsapp"],
+      competitorProfileIds: ["creator_demo_1", "creator_demo_2"],
+      researchMode: "manual_links",
       cadence: "weekly",
       botMode: "assist",
       aiConfig: {

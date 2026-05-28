@@ -61,6 +61,7 @@ export default function AutomationsPage() {
     analytics,
     generateWeek,
     runAutomation,
+    runResearchAnalysis,
     updateCaptureCampaign,
     addBotScenario,
     updateBotScenario
@@ -82,6 +83,22 @@ export default function AutomationsPage() {
     const exists = campaign.channels.includes(channel);
     updateCampaign({
       channels: exists ? campaign.channels.filter((item) => item !== channel) : [...campaign.channels, channel]
+    });
+  }
+
+  function toggleTargetConnection(connectionId: string) {
+    const selected = campaign.targetConnectionIds ?? [];
+    const exists = selected.includes(connectionId);
+    updateCampaign({
+      targetConnectionIds: exists ? selected.filter((item) => item !== connectionId) : [...selected, connectionId]
+    });
+  }
+
+  function toggleCompetitorProfile(profileId: string) {
+    const selected = campaign.competitorProfileIds ?? [];
+    const exists = selected.includes(profileId);
+    updateCampaign({
+      competitorProfileIds: exists ? selected.filter((item) => item !== profileId) : [...selected, profileId]
     });
   }
 
@@ -231,6 +248,60 @@ export default function AutomationsPage() {
                   })}
                 </div>
               </Field>
+
+              <Field label="Paginas o cuentas que trabajara esta automatizacion">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {state.connections
+                    .filter((connection) => connection.platform !== "whatsapp")
+                    .map((connection) => {
+                      const active = (campaign.targetConnectionIds ?? []).includes(connection.id);
+                      return (
+                        <button
+                          key={connection.id}
+                          type="button"
+                          className={`pressable rounded-2xl border px-3 py-2 text-left text-sm font-semibold ${
+                            active ? "border-peacock bg-peacock/10 text-peacock" : "border-ink/10 bg-paper text-ink/65"
+                          }`}
+                          onClick={() => toggleTargetConnection(connection.id)}
+                        >
+                          <span className="block">{connection.label}</span>
+                          <span className="mt-1 block text-xs font-medium opacity-70">{connection.pageSlot ?? connection.platform}</span>
+                        </button>
+                      );
+                    })}
+                </div>
+              </Field>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Modo investigacion">
+                  <select
+                    className="select"
+                    value={campaign.researchMode ?? "manual_links"}
+                    onChange={(event) => updateCampaign({ researchMode: event.target.value as OrganicCaptureCampaign["researchMode"] })}
+                  >
+                    <option value="off">Apagado</option>
+                    <option value="manual_links">Links manuales de creadores</option>
+                    <option value="internet_watch">Internet watch por API</option>
+                  </select>
+                </Field>
+                <Field label="Perfiles competidores a vigilar">
+                  <div className="flex flex-wrap gap-2 rounded-2xl border border-ink/10 bg-paper p-2">
+                    {state.competitorProfiles.map((profile) => {
+                      const active = (campaign.competitorProfileIds ?? []).includes(profile.id);
+                      return (
+                        <button
+                          key={profile.id}
+                          type="button"
+                          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${active ? "bg-violet text-white" : "bg-[var(--color-surface)] text-ink/65"}`}
+                          onClick={() => toggleCompetitorProfile(profile.id)}
+                        >
+                          {profile.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Field>
+              </div>
 
               <div className="grid gap-4 md:grid-cols-3">
                 <Field label="Lead magnet">
@@ -458,6 +529,33 @@ export default function AutomationsPage() {
               <div className="rounded-2xl border border-ink/10 bg-paper p-3 text-sm leading-6 text-ink/65">
                 En modo BOT, los casos de riesgo alto siempre se escalan. WhatsApp sigue siendo handoff seguro; no se envia spam ni mensajes masivos.
               </div>
+            </div>
+          </Panel>
+
+          <Panel>
+            <PanelHeader title="Bucle autonomo de captacion" description="El motor une paginas, contenido, metricas, competidores y recomendaciones." />
+            <div className="grid gap-3 p-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-ink/10 bg-paper p-3">
+                  <p className="text-xs text-ink/50">Paginas destino</p>
+                  <p className="mt-1 text-xl font-semibold">{campaign.targetConnectionIds?.length ?? 0}</p>
+                </div>
+                <div className="rounded-2xl border border-ink/10 bg-paper p-3">
+                  <p className="text-xs text-ink/50">Creadores vigilados</p>
+                  <p className="mt-1 text-xl font-semibold">{campaign.competitorProfileIds?.length ?? 0}</p>
+                </div>
+                <div className="rounded-2xl border border-ink/10 bg-paper p-3">
+                  <p className="text-xs text-ink/50">Insights</p>
+                  <p className="mt-1 text-xl font-semibold">{state.researchInsights.length}</p>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-ink/10 bg-paper p-3 text-sm leading-6 text-ink/65">
+                Publica por API si el token esta configurado; si no, deja checklist manual. Despues mide alcance, clics y comentarios, compara contra creadores y devuelve recomendaciones al calendario.
+              </div>
+              <button className="btn-secondary" type="button" onClick={runResearchAnalysis}>
+                <BrainCircuit className="h-4 w-4" />
+                Ejecutar analisis competitivo
+              </button>
             </div>
           </Panel>
 

@@ -10,6 +10,7 @@ import type {
   BrandProfile,
   Business,
   Channel,
+  CompetitorProfile,
   ContentAsset,
   ContentIdea,
   ContentObjective,
@@ -21,6 +22,7 @@ import type {
   PricePlan,
   Product,
   Publication,
+  ResearchInsight,
   SocialConnection,
   WorkspaceState
 } from "@/lib/types";
@@ -43,6 +45,8 @@ interface WorkspaceContextValue {
     templateId: string;
     prompt: string;
     copy: string;
+    targetConnectionIds?: string[];
+    referenceImageUrls?: string[];
   }) => string;
   generateWeek: () => void;
   generateContent: (input: { productId: string; objective: ContentObjective; channel: Channel }) => void;
@@ -51,7 +55,11 @@ interface WorkspaceContextValue {
   updateAssetStatus: (assetId: string, status: ContentStatus) => void;
   addPublication: (publication: Omit<Publication, "id" | "metrics">) => void;
   updatePublication: (publicationId: string, publication: Partial<Publication>) => void;
+  addConnection: (connection: Omit<SocialConnection, "id" | "businessId" | "lastCheckedAt">) => void;
   updateConnection: (connectionId: string, connection: Partial<SocialConnection>) => void;
+  addCompetitorProfile: (profile: Omit<CompetitorProfile, "id" | "businessId" | "createdAt" | "updatedAt">) => void;
+  updateCompetitorProfile: (profileId: string, profile: Partial<CompetitorProfile>) => void;
+  runResearchAnalysis: () => void;
   updateCaptureCampaign: (campaignId: string, campaign: Partial<OrganicCaptureCampaign>) => void;
   addBotScenario: (campaignId: string) => void;
   updateBotScenario: (
@@ -88,6 +96,8 @@ function readStoredState(): WorkspaceState | null {
         }
       },
       connections: parsed.connections ?? initialWorkspace.connections,
+      competitorProfiles: parsed.competitorProfiles ?? initialWorkspace.competitorProfiles,
+      researchInsights: parsed.researchInsights ?? initialWorkspace.researchInsights,
       captureCampaigns: parsed.captureCampaigns ?? initialWorkspace.captureCampaigns
     } as WorkspaceState;
   } catch {
@@ -205,6 +215,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         designTemplateId: input.templateId,
         designSvg: "",
         prompt: input.prompt,
+        targetConnectionIds: input.targetConnectionIds ?? [],
+        referenceImageUrls: input.referenceImageUrls ?? [],
         qa: {
           score: 82,
           riskFlags: [],
@@ -296,6 +308,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         designTemplateId: input.channel === "instagram_story" ? "story_v1" : "post_square_clean_v1",
         designSvg: "",
         prompt: generated.asset.prompt ?? "",
+        targetConnectionIds: current.captureCampaigns[0]?.targetConnectionIds ?? [],
+        referenceImageUrls: current.brand.referenceAssets.slice(0, 3),
         qa: generated.asset.qa ?? {
           score: 0,
           riskFlags: [],
@@ -310,6 +324,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         id: makeId("pub"),
         assetId,
         channel: input.channel,
+        connectionId: current.captureCampaigns[0]?.targetConnectionIds?.[0] ?? null,
         scheduledAt: idea.scheduledDay,
         publishedAt: null,
         platformPostId: null,
@@ -413,6 +428,21 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const addConnection = useCallback<WorkspaceContextValue["addConnection"]>((connection) => {
+    setState((current) => ({
+      ...current,
+      connections: [
+        ...current.connections,
+        {
+          ...connection,
+          id: makeId("conn"),
+          businessId: current.business.id,
+          lastCheckedAt: todayIso()
+        }
+      ]
+    }));
+  }, []);
+
   const updateConnection = useCallback((connectionId: string, connection: Partial<SocialConnection>) => {
     setState((current) => ({
       ...current,
@@ -426,6 +456,124 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           : item
       )
     }));
+  }, []);
+
+  const addCompetitorProfile = useCallback<WorkspaceContextValue["addCompetitorProfile"]>((profile) => {
+    setState((current) => ({
+      ...current,
+      competitorProfiles: [
+        {
+          ...profile,
+          id: makeId("creator"),
+          businessId: current.business.id,
+          createdAt: todayIso(),
+          updatedAt: todayIso()
+        },
+        ...current.competitorProfiles
+      ]
+    }));
+  }, []);
+
+  const updateCompetitorProfile = useCallback<WorkspaceContextValue["updateCompetitorProfile"]>((profileId, profile) => {
+    setState((current) => ({
+      ...current,
+      competitorProfiles: current.competitorProfiles.map((item) =>
+        item.id === profileId ? { ...item, ...profile, updatedAt: todayIso() } : item
+      )
+    }));
+  }, []);
+
+  const runResearchAnalysis = useCallback(() => {
+    setState((current) => {
+      const activeCreators = current.competitorProfiles.filter((profile) => profile.isActive);
+      const topCreator = [...activeCreators].sort(
+        (a, b) =>
+          b.metricsSnapshot.avgLikes +
+          b.metricsSnapshot.avgComments * 3 -
+          (a.metricsSnapshot.avgLikes + a.metricsSnapshot.avgComments * 3)
+      )[0];
+      const published = current.publications.filter((publication) => publication.status === "published");
+      const bestOwn = [...published].sort(
+        (a, b) =>
+          b.metrics.likes +
+          b.metrics.comments * 3 +
+          b.metrics.saves * 2 +
+          b.metrics.clicks * 4 -
+          (a.metrics.likes + a.metrics.comments * 3 + a.metrics.saves * 2 + a.metrics.clicks * 4)
+      )[0];
+      const bestOwnAsset = bestOwn ? current.assets.find((asset) => asset.id === bestOwn.assetId) : null;
+      const insights: ResearchInsight[] = [
+        {
+          id: makeId("insight"),
+          businessId: current.business.id,
+          source: "erex",
+          title: "Checklist EREX para validar ideas virales",
+          summary:
+            "La idea debe ser simple, comentarizable, inspirada en referencias, accionable y entendible por una persona sin tecnicismos.",
+          recommendation:
+            "Antes de publicar, exige 6/9 criterios: claridad para un nino de 10 anos, controversia o comentario, referencia viral, camino A-B, realizable y aporte propio.",
+          confidence: 92,
+          createdAt: todayIso()
+        },
+        {
+          id: makeId("insight"),
+          businessId: current.business.id,
+          source: "erex",
+          title: "Estructura de guion para venta organica",
+          summary:
+            "El material de EREX prioriza problema, oportunidad, pasos practicos, promesa realista y CTA medible.",
+          recommendation:
+            "Usa el patron: gancho negativo o deseo fuerte, problema concreto, solucion en 3 pasos, prueba o historia, y CTA con palabra clave de WhatsApp.",
+          confidence: 89,
+          createdAt: todayIso()
+        },
+        {
+          id: makeId("insight"),
+          businessId: current.business.id,
+          source: "competitor",
+          title: topCreator ? `Formato fuerte detectado en ${topCreator.name}` : "Agrega creadores para detectar formatos fuertes",
+          summary: topCreator
+            ? `${topCreator.metricsSnapshot.postsAnalyzed} piezas analizadas. Mejor formato: ${topCreator.metricsSnapshot.topFormat}. Hook dominante: ${topCreator.metricsSnapshot.topHook}.`
+            : "Sin creadores activos todavia. El sistema necesita URLs de perfiles para comparar formatos, hooks y senales.",
+          recommendation: topCreator
+            ? `Replica la logica, no la pieza: crea una version para ${current.business.niche} usando ${topCreator.metricsSnapshot.topFormat}, pregunta en comentario y CTA a ${current.captureCampaigns[0]?.trackedKeyword ?? "INFO"}.`
+            : "Carga al menos 3 perfiles: uno grande, uno mediano y uno de nicho local. Luego ejecuta analisis semanal.",
+          confidence: topCreator ? 84 : 58,
+          createdAt: todayIso()
+        },
+        {
+          id: makeId("insight"),
+          businessId: current.business.id,
+          source: "own_content",
+          title: bestOwnAsset ? `Reutilizar angulo ganador: ${bestOwnAsset.title}` : "Publica y mide para alimentar el loop propio",
+          summary: bestOwn
+            ? `Senales: ${bestOwn.metrics.likes} likes, ${bestOwn.metrics.comments} comentarios, ${bestOwn.metrics.clicks} clics.`
+            : "Aun no hay publicaciones marcadas como published. El aprendizaje propio empieza cuando haya metricas reales.",
+          recommendation: bestOwnAsset
+            ? "Convierte esta pieza en 3 variaciones: reel con hook, carrusel de pasos y story con encuesta + link WhatsApp."
+            : "Activa publicaciones y registra metricas para que el motor deje de depender solo de benchmarks.",
+          confidence: bestOwn ? 78 : 55,
+          createdAt: todayIso()
+        },
+        {
+          id: makeId("insight"),
+          businessId: current.business.id,
+          source: "internet",
+          title: "Modo internet preparado para integracion API",
+          summary:
+            "El MVP deja configurado el loop: perfiles, URLs, metricas, recomendaciones y fallback manual. La busqueda web real se activa cuando existan claves/API.",
+          recommendation:
+            "Conecta un proveedor de busqueda o scraping permitido; guarda cada hallazgo como insight antes de generar contenido automatico.",
+          confidence: 72,
+          createdAt: todayIso()
+        }
+      ];
+
+      return {
+        ...current,
+        researchInsights: [...insights, ...current.researchInsights].slice(0, 30)
+      };
+    });
   }, []);
 
   const updateCaptureCampaign = useCallback((campaignId: string, campaign: Partial<OrganicCaptureCampaign>) => {
@@ -625,7 +773,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       updateAssetStatus,
       addPublication,
       updatePublication,
+      addConnection,
       updateConnection,
+      addCompetitorProfile,
+      updateCompetitorProfile,
+      runResearchAnalysis,
       updateCaptureCampaign,
       addBotScenario,
       updateBotScenario,
@@ -652,7 +804,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       updateAssetStatus,
       addPublication,
       updatePublication,
+      addConnection,
       updateConnection,
+      addCompetitorProfile,
+      updateCompetitorProfile,
+      runResearchAnalysis,
       updateCaptureCampaign,
       addBotScenario,
       updateBotScenario,

@@ -68,6 +68,8 @@ export interface SocialConnection {
   isActive: boolean;
   lastCheckedAt: string | null;
   notes: string;
+  pageSlot?: string;
+  contentRole?: "principal" | "prueba" | "nicho" | "soporte";
 }
 
 export type AiOperationMode = "api" | "manual" | "hybrid";
@@ -104,6 +106,9 @@ export interface OrganicCaptureCampaign {
   objective: "captar_leads" | "agendar" | "vender" | "nutrir";
   productId: string | null;
   channels: Channel[];
+  targetConnectionIds?: string[];
+  competitorProfileIds?: string[];
+  researchMode?: "off" | "manual_links" | "internet_watch";
   cadence: "daily" | "weekly" | "manual";
   botMode: BotMode;
   aiConfig: AiIntegrationConfig;
@@ -232,6 +237,8 @@ export interface ContentAsset {
   designTemplateId: string;
   designSvg: string;
   prompt: string;
+  targetConnectionIds?: string[];
+  referenceImageUrls?: string[];
   qa: QaResult;
   status: ContentStatus;
   createdAt: string;
@@ -241,6 +248,7 @@ export interface Publication {
   id: string;
   assetId: string;
   channel: Channel;
+  connectionId?: string | null;
   scheduledAt: string;
   publishedAt: string | null;
   platformPostId: string | null;
@@ -254,6 +262,39 @@ export interface Publication {
     saves: number;
     clicks: number;
   };
+}
+
+export interface CompetitorProfile {
+  id: string;
+  businessId: string;
+  platform: SocialPlatform;
+  name: string;
+  handle: string;
+  profileUrl: string;
+  niche: string;
+  notes: string;
+  trackedFormats: string[];
+  isActive: boolean;
+  metricsSnapshot: {
+    postsAnalyzed: number;
+    avgLikes: number;
+    avgComments: number;
+    topFormat: string;
+    topHook: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ResearchInsight {
+  id: string;
+  businessId: string;
+  source: "own_content" | "competitor" | "internet" | "erex";
+  title: string;
+  summary: string;
+  recommendation: string;
+  confidence: number;
+  createdAt: string;
 }
 
 export interface Lead {
@@ -335,6 +376,8 @@ export interface WorkspaceState {
   leads: Lead[];
   leadEvents: LeadEvent[];
   connections: SocialConnection[];
+  competitorProfiles: CompetitorProfile[];
+  researchInsights: ResearchInsight[];
   captureCampaigns: OrganicCaptureCampaign[];
   flows: AutomationFlow[];
   runs: AutomationRun[];
