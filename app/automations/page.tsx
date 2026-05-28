@@ -15,6 +15,7 @@ import {
   Sparkles,
   Workflow
 } from "lucide-react";
+import { WhatsappPreview } from "@/components/whatsapp-preview";
 import { EmptyState, Field, PageHeader, Panel, PanelHeader, StatusBadge } from "@/components/ui";
 import { useWorkspace } from "@/lib/store";
 import type { BotScenario, Channel, OrganicCaptureCampaign } from "@/lib/types";
@@ -71,6 +72,7 @@ export default function AutomationsPage() {
   const preview = useMemo(() => localBotPreview(campaign, testMessage), [campaign, testMessage]);
   const activeConnections = state.connections.filter((connection) => connection.isActive);
   const apiReady = Boolean(campaign.aiConfig.apiKeyEnvName && campaign.aiConfig.provider !== "none");
+  const campaignProduct = state.products.find((product) => product.id === campaign.productId);
 
   function updateCampaign(patch: Partial<OrganicCaptureCampaign>) {
     updateCaptureCampaign(campaign.id, patch);
@@ -107,7 +109,7 @@ export default function AutomationsPage() {
   return (
     <>
       <PageHeader
-        title="Motor de captacion organica"
+        title={state.settings.moduleLabels.automations}
         description="Configura la automatizacion completa: contenido semanal, canales, IA por API, modo BOT, casos hipoteticos, respuestas posibles, calificacion de leads y handoff a WhatsApp."
       >
         <button className="btn-primary" onClick={generateWeek}>
@@ -460,11 +462,20 @@ export default function AutomationsPage() {
           </Panel>
 
           <Panel>
-            <PanelHeader title="Probar respuesta" description="Simula mensajes de leads antes de activar el flujo." />
+            <PanelHeader title="Vista conversacion" description="Simula como fluye el chat antes de activar el bot." />
             <form className="grid gap-4 p-4" onSubmit={testApiBot}>
               <Field label="Mensaje entrante">
                 <textarea className="textarea" value={testMessage} onChange={(event) => setTestMessage(event.target.value)} />
               </Field>
+              <WhatsappPreview
+                businessName={state.business.name}
+                phone={state.business.whatsappPhone}
+                leadMessage={testMessage}
+                reply={preview.reply}
+                questions={preview.questions}
+                status={preview.shouldEscalate ? "Escalar a humano" : campaign.botMode}
+                attachmentTitle={campaignProduct ? `Oferta: ${campaignProduct.name}` : campaign.leadMagnet}
+              />
               <div className="rounded-2xl border border-ink/10 bg-paper p-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold">Preview local</p>
@@ -497,7 +508,7 @@ export default function AutomationsPage() {
                 {isRunningApi ? "Probando..." : "Probar endpoint BOT"}
               </button>
               {apiResult ? (
-                <pre className="max-h-72 overflow-auto rounded-2xl bg-ink p-3 text-xs leading-5 text-white">{apiResult}</pre>
+                <pre className="max-h-72 overflow-auto rounded-2xl border border-ink/10 bg-paper p-3 text-xs leading-5 text-ink">{apiResult}</pre>
               ) : null}
             </form>
           </Panel>

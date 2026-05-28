@@ -4,7 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { WorkspaceProvider } from "@/lib/store";
 
 export const metadata: Metadata = {
-  title: "GrowthBrain Local",
+  title: "ImpulsaOS",
   description: "Motor de marketing autónomo para contenido, piezas visuales, leads y WhatsApp."
 };
 

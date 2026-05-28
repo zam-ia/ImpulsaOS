@@ -5,10 +5,24 @@ import { ImagePlus, Save, RotateCcw, Trash2 } from "lucide-react";
 import { ImageCropModal } from "@/components/image-crop-modal";
 import { Field, PageHeader, Panel, PanelHeader } from "@/components/ui";
 import { useWorkspace } from "@/lib/store";
+import type { ModuleKey, ThemePreference } from "@/lib/types";
 import { cleanList } from "@/lib/utils";
 
+const moduleOrder: ModuleKey[] = [
+  "dashboard",
+  "business",
+  "products",
+  "content",
+  "calendar",
+  "designs",
+  "leads",
+  "connections",
+  "analytics",
+  "automations"
+];
+
 export default function BusinessPage() {
-  const { state, updateBusiness, updateBrand, resetDemo } = useWorkspace();
+  const { state, updateBusiness, updateBrand, updateSettings, resetDemo } = useWorkspace();
   const [business, setBusiness] = useState(state.business);
   const [brand, setBrand] = useState({
     ...state.brand,
@@ -194,6 +208,58 @@ export default function BusinessPage() {
                   onChange={(event) => setBrand({ ...brand, forbiddenWordsText: event.target.value })}
                 />
               </Field>
+            </div>
+          </Panel>
+
+          <Panel>
+            <PanelHeader title="Interfaz y modulos" description="Personaliza tema, sidebar y nombres visibles sin tocar codigo." />
+            <div className="grid gap-4 p-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Tema">
+                  <select className="select" value={state.settings.theme} onChange={(event) => updateSettings({ theme: event.target.value as ThemePreference })}>
+                    <option value="system">Sistema</option>
+                    <option value="light">Dia</option>
+                    <option value="dark">Noche</option>
+                  </select>
+                </Field>
+                <Field label="Sidebar">
+                  <select
+                    className="select"
+                    value={state.settings.sidebarCollapsed ? "collapsed" : "expanded"}
+                    onChange={(event) => updateSettings({ sidebarCollapsed: event.target.value === "collapsed" })}
+                  >
+                    <option value="expanded">Expandido 240px</option>
+                    <option value="collapsed">Contraido 64px</option>
+                  </select>
+                </Field>
+              </div>
+
+              <div className="rounded-3xl border border-ink/10 bg-paper p-3">
+                <div className="mb-3">
+                  <p className="text-sm font-semibold text-ink">Nombres de modulos</p>
+                  <p className="mt-1 text-xs leading-5 text-ink/55">
+                    Puedes dejar "Automatizaciones" o renombrar cualquier modulo desde aqui.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {moduleOrder.map((moduleKey) => (
+                    <Field key={moduleKey} label={moduleKey}>
+                      <input
+                        className="input"
+                        value={state.settings.moduleLabels[moduleKey]}
+                        onChange={(event) =>
+                          updateSettings({
+                            moduleLabels: {
+                              ...state.settings.moduleLabels,
+                              [moduleKey]: event.target.value
+                            }
+                          })
+                        }
+                      />
+                    </Field>
+                  ))}
+                </div>
+              </div>
             </div>
           </Panel>
 

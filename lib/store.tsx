@@ -16,6 +16,7 @@ import type {
   ContentStatus,
   Lead,
   LeadStage,
+  AppSettings,
   OrganicCaptureCampaign,
   PricePlan,
   Product,
@@ -30,15 +31,25 @@ const STORAGE_KEY = "growthbrain-local-state-v1";
 interface WorkspaceContextValue {
   state: WorkspaceState;
   analytics: ReturnType<typeof computeAnalytics>;
+  updateSettings: (settings: Partial<AppSettings>) => void;
   updateBusiness: (business: Partial<Business>) => void;
   updateBrand: (brand: Partial<BrandProfile>) => void;
   addProduct: (product: Omit<Product, "id" | "businessId" | "createdAt">, price: Omit<PricePlan, "id" | "productId" | "createdAt">) => void;
   updateProduct: (productId: string, product: Partial<Product>, price?: Partial<PricePlan>) => void;
+  addDesignAsset: (input: {
+    title: string;
+    productId: string | null;
+    channel: Channel;
+    templateId: string;
+    prompt: string;
+    copy: string;
+  }) => string;
   generateWeek: () => void;
   generateContent: (input: { productId: string; objective: ContentObjective; channel: Channel }) => void;
   updateIdeaStatus: (ideaId: string, status: ContentStatus) => void;
   updateAsset: (assetId: string, asset: Partial<ContentAsset>) => void;
   updateAssetStatus: (assetId: string, status: ContentStatus) => void;
+  addPublication: (publication: Omit<Publication, "id" | "metrics">) => void;
   updatePublication: (publicationId: string, publication: Partial<Publication>) => void;
   updateConnection: (connectionId: string, connection: Partial<SocialConnection>) => void;
   updateCaptureCampaign: (campaignId: string, campaign: Partial<OrganicCaptureCampaign>) => void;
@@ -68,6 +79,14 @@ function readStoredState(): WorkspaceState | null {
     return {
       ...initialWorkspace,
       ...parsed,
+      settings: {
+        ...initialWorkspace.settings,
+        ...parsed.settings,
+        moduleLabels: {
+          ...initialWorkspace.settings.moduleLabels,
+          ...parsed.settings?.moduleLabels
+        }
+      },
       connections: parsed.connections ?? initialWorkspace.connections,
       captureCampaigns: parsed.captureCampaigns ?? initialWorkspace.captureCampaigns
     } as WorkspaceState;
@@ -87,6 +106,21 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
+
+  const updateSettings = useCallback((settings: Partial<AppSettings>) => {
+    setState((current) => ({
+      ...current,
+      settings: {
+        ...current.settings,
+        ...settings,
+        moduleLabels: {
+          ...current.settings.moduleLabels,
+          ...settings.moduleLabels
+        },
+        updatedAt: todayIso()
+      }
+    }));
+  }, []);
 
   const updateBusiness = useCallback((business: Partial<Business>) => {
     setState((current) => ({
@@ -137,6 +171,66 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         ? current.pricePlans.map((item) => (item.productId === productId ? { ...item, ...price } : item))
         : current.pricePlans
     }));
+  }, []);
+
+  const addDesignAsset = useCallback<WorkspaceContextValue["addDesignAsset"]>((input) => {
+    const assetId = makeId("asset");
+    setState((current) => {
+      const ideaId = makeId("idea");
+      const product = input.productId ? current.products.find((item) => item.id === input.productId) ?? null : null;
+      const idea: ContentIdea = {
+        id: ideaId,
+        businessId: current.business.id,
+        productId: input.productId,
+        pillarId: null,
+        title: input.title,
+        angle: "Diseño creado manualmente desde el módulo de diseños.",
+        hook: input.copy.split("\n").find(Boolean) ?? input.prompt,
+        format: input.templateId === "story_v1" ? "Story" : "Post",
+        objective: "valor",
+        viralScore: 76,
+        status: "needs_review",
+        scheduledDay: addDaysIso(1, 10),
+        createdAt: todayIso()
+      };
+      const baseAsset: ContentAsset = {
+        id: assetId,
+        ideaId,
+        productId: input.productId,
+        assetType: "design",
+        channel: input.channel,
+        title: input.title,
+        copy: input.copy,
+        script: "",
+        designTemplateId: input.templateId,
+        designSvg: "",
+        prompt: input.prompt,
+        qa: {
+          score: 82,
+          riskFlags: [],
+          qaNotes: ["Diseño creado desde prompt/manual."],
+          needsReview: true,
+          blockers: []
+        },
+        status: "needs_review",
+        createdAt: todayIso()
+      };
+      const designSvg = renderDesignSvg({
+        business: current.business,
+        brand: current.brand,
+        asset: baseAsset,
+        idea,
+        product,
+        templateId: input.templateId
+      });
+
+      return {
+        ...current,
+        ideas: [idea, ...current.ideas],
+        assets: [{ ...baseAsset, designSvg }, ...current.assets]
+      };
+    });
+    return assetId;
   }, []);
 
   const generateWeek = useCallback(() => {
@@ -281,6 +375,31 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       assets: current.assets.map((asset) => (asset.id === assetId ? { ...asset, status } : asset)),
       publications: current.publications.map((publication) =>
         publication.assetId === assetId ? { ...publication, status } : publication
+      )
+    }));
+  }, []);
+
+  const addPublication = useCallback<WorkspaceContextValue["addPublication"]>((publication) => {
+    setState((current) => ({
+      ...current,
+      publications: [
+        {
+          ...publication,
+          id: makeId("pub"),
+          metrics: {
+            impressions: 0,
+            reach: 0,
+            likes: 0,
+            comments: 0,
+            shares: 0,
+            saves: 0,
+            clicks: 0
+          }
+        },
+        ...current.publications
+      ],
+      assets: current.assets.map((asset) =>
+        asset.id === publication.assetId ? { ...asset, status: publication.status, channel: publication.channel } : asset
       )
     }));
   }, []);
@@ -493,15 +612,18 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     () => ({
       state,
       analytics,
+      updateSettings,
       updateBusiness,
       updateBrand,
       addProduct,
       updateProduct,
+      addDesignAsset,
       generateWeek,
       generateContent,
       updateIdeaStatus,
       updateAsset,
       updateAssetStatus,
+      addPublication,
       updatePublication,
       updateConnection,
       updateCaptureCampaign,
@@ -517,15 +639,18 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     [
       state,
       analytics,
+      updateSettings,
       updateBusiness,
       updateBrand,
       addProduct,
       updateProduct,
+      addDesignAsset,
       generateWeek,
       generateContent,
       updateIdeaStatus,
       updateAsset,
       updateAssetStatus,
+      addPublication,
       updatePublication,
       updateConnection,
       updateCaptureCampaign,

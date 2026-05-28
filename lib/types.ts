@@ -35,6 +35,25 @@ export type Channel =
   | "manual";
 
 export type SocialPlatform = "facebook" | "instagram" | "tiktok" | "whatsapp";
+export type ThemePreference = "system" | "light" | "dark";
+export type ModuleKey =
+  | "dashboard"
+  | "business"
+  | "products"
+  | "content"
+  | "calendar"
+  | "designs"
+  | "leads"
+  | "connections"
+  | "analytics"
+  | "automations";
+
+export interface AppSettings {
+  theme: ThemePreference;
+  sidebarCollapsed: boolean;
+  moduleLabels: Record<ModuleKey, string>;
+  updatedAt: string;
+}
 
 export interface SocialConnection {
   id: string;
@@ -303,6 +322,7 @@ export interface AiRun {
 }
 
 export interface WorkspaceState {
+  settings: AppSettings;
   business: Business;
   brand: BrandProfile;
   products: Product[];

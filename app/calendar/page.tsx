@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, Check, Pencil, Save, Send } from "lucide-react";
+import { CalendarDays, Check, Pencil, Plus, Save, Send } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { EmptyState, Field, PageHeader, Panel, PanelHeader, StatusBadge } from "@/components/ui";
 import { useWorkspace } from "@/lib/store";
@@ -18,9 +18,11 @@ function toDatetimeLocal(value: string) {
 }
 
 export default function CalendarPage() {
-  const { state, updatePublication, updateAssetStatus } = useWorkspace();
+  const { state, addPublication, updatePublication, updateAssetStatus } = useWorkspace();
   const [editingPublicationId, setEditingPublicationId] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [publicationForm, setPublicationForm] = useState({
+    assetId: state.assets[0]?.id ?? "",
     scheduledAt: "",
     channel: "instagram_post" as Channel,
     status: "scheduled" as ContentStatus,
@@ -30,14 +32,39 @@ export default function CalendarPage() {
     (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
   );
 
+  function openAddPublication() {
+    setPublicationForm({
+      assetId: state.assets[0]?.id ?? "",
+      scheduledAt: toDatetimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()),
+      channel: "instagram_post",
+      status: "scheduled",
+      platformPostId: ""
+    });
+    setShowAddModal(true);
+  }
+
   function openPublicationEdit(publication: Publication) {
     setEditingPublicationId(publication.id);
     setPublicationForm({
+      assetId: publication.assetId,
       scheduledAt: toDatetimeLocal(publication.scheduledAt),
       channel: publication.channel,
       status: publication.status,
       platformPostId: publication.platformPostId ?? ""
     });
+  }
+
+  function saveNewPublication() {
+    if (!publicationForm.assetId || !publicationForm.scheduledAt) return;
+    addPublication({
+      assetId: publicationForm.assetId,
+      channel: publicationForm.channel,
+      scheduledAt: new Date(publicationForm.scheduledAt).toISOString(),
+      publishedAt: publicationForm.status === "published" ? new Date().toISOString() : null,
+      platformPostId: publicationForm.platformPostId || null,
+      status: publicationForm.status
+    });
+    setShowAddModal(false);
   }
 
   function savePublicationEdit() {
@@ -59,23 +86,28 @@ export default function CalendarPage() {
     <>
       <PageHeader
         title="Scheduler & Publisher"
-        description="Calendario editorial con modo publicación asistida. Meta API queda lista para usar cuando existan tokens y permisos."
-      />
+        description="Calendario editorial con modo publicacion asistida. Meta API queda lista para usar cuando existan tokens y permisos."
+      >
+        <button className="btn-primary" type="button" onClick={openAddPublication} disabled={state.assets.length === 0}>
+          <Plus className="h-4 w-4" />
+          Agregar publicacion
+        </button>
+      </PageHeader>
 
       <Panel>
-        <PanelHeader title="Calendario de publicaciones" description="Aprueba y marca como programado o publicado según el flujo real." />
+        <PanelHeader title="Calendario de publicaciones" description="Aprueba, programa o marca publicado segun el flujo real." />
         {publications.length === 0 ? (
-          <EmptyState title="Sin publicaciones" description="Genera contenido para crear una cola de publicaciones sugeridas." />
+          <EmptyState title="Sin publicaciones" description="Genera o agrega una pieza para crear la cola de publicaciones." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] border-collapse">
+            <table className="data-table min-w-[760px]">
               <thead>
-                <tr className="border-b border-ink/10 bg-paper text-left text-xs font-semibold uppercase tracking-normal text-ink/55">
+                <tr className="border-b border-ink/10 text-left text-xs font-medium uppercase tracking-normal text-ink/55">
                   <th className="table-cell">Fecha</th>
                   <th className="table-cell">Pieza</th>
                   <th className="table-cell">Canal</th>
                   <th className="table-cell">Estado</th>
-                  <th className="table-cell">Acción</th>
+                  <th className="table-cell">Accion</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink/10">
@@ -85,12 +117,12 @@ export default function CalendarPage() {
                     <tr key={publication.id}>
                       <td className="table-cell font-medium text-ink">
                         <div className="flex items-center gap-2">
-                          <CalendarDays className="h-4 w-4 text-moss" />
+                          <CalendarDays className="h-4 w-4 text-[var(--color-accent)]" />
                           {shortDate(publication.scheduledAt)}
                         </div>
                       </td>
                       <td className="table-cell">
-                        <p className="font-medium text-ink">{asset?.title ?? "Pieza sin título"}</p>
+                        <p className="font-medium text-ink">{asset?.title ?? "Pieza sin titulo"}</p>
                         <p className="mt-1 line-clamp-2 text-ink/60">{asset?.copy.split("\n")[0]}</p>
                       </td>
                       <td className="table-cell text-ink/70">{publication.channel.replaceAll("_", " ")}</td>
@@ -105,6 +137,7 @@ export default function CalendarPage() {
                           </button>
                           <button
                             className="btn-secondary"
+                            type="button"
                             onClick={() => {
                               updatePublication(publication.id, { status: "scheduled" });
                               if (asset) updateAssetStatus(asset.id, "scheduled");
@@ -115,6 +148,7 @@ export default function CalendarPage() {
                           </button>
                           <button
                             className="btn-primary"
+                            type="button"
                             onClick={() => {
                               updatePublication(publication.id, {
                                 status: "published",
@@ -143,51 +177,117 @@ export default function CalendarPage() {
           </div>
         )}
       </Panel>
-      <Modal
+
+      <PublicationModal
+        open={showAddModal}
+        title="Agregar publicacion"
+        description="Programa una pieza existente en el calendario y sincroniza su estado."
+        assets={state.assets}
+        form={publicationForm}
+        onFormChange={setPublicationForm}
+        onClose={() => setShowAddModal(false)}
+        onSave={saveNewPublication}
+      />
+
+      <PublicationModal
         open={editingPublicationId !== null}
-        onClose={() => setEditingPublicationId(null)}
         title="Editar publicacion"
-        description="Ajusta la programacion y el estado. El asset queda sincronizado con esta publicacion."
-        size="md"
-        footer={
-          <>
-            <button className="btn-secondary" type="button" onClick={() => setEditingPublicationId(null)}>
-              Cancelar
-            </button>
-            <button className="btn-primary" type="button" onClick={savePublicationEdit}>
-              <Save className="h-4 w-4" />
-              Guardar publicacion
-            </button>
-          </>
-        }
-      >
-        <div className="grid gap-4">
-          <Field label="Fecha y hora">
-            <input className="input" type="datetime-local" value={publicationForm.scheduledAt} onChange={(event) => setPublicationForm({ ...publicationForm, scheduledAt: event.target.value })} />
-          </Field>
-          <Field label="Canal">
-            <select className="select" value={publicationForm.channel} onChange={(event) => setPublicationForm({ ...publicationForm, channel: event.target.value as Channel })}>
-              {channels.map((channel) => (
-                <option key={channel} value={channel}>
-                  {channel.replaceAll("_", " ")}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Estado">
-            <select className="select" value={publicationForm.status} onChange={(event) => setPublicationForm({ ...publicationForm, status: event.target.value as ContentStatus })}>
-              {publicationStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="ID de plataforma">
-            <input className="input" value={publicationForm.platformPostId} onChange={(event) => setPublicationForm({ ...publicationForm, platformPostId: event.target.value })} />
-          </Field>
-        </div>
-      </Modal>
+        description="Ajusta programacion, canal, estado e ID de plataforma."
+        assets={state.assets}
+        form={publicationForm}
+        onFormChange={setPublicationForm}
+        onClose={() => setEditingPublicationId(null)}
+        onSave={savePublicationEdit}
+      />
     </>
+  );
+}
+
+function PublicationModal({
+  open,
+  title,
+  description,
+  assets,
+  form,
+  onFormChange,
+  onClose,
+  onSave
+}: {
+  open: boolean;
+  title: string;
+  description: string;
+  assets: Array<{ id: string; title: string }>;
+  form: {
+    assetId: string;
+    scheduledAt: string;
+    channel: Channel;
+    status: ContentStatus;
+    platformPostId: string;
+  };
+  onFormChange: (form: {
+    assetId: string;
+    scheduledAt: string;
+    channel: Channel;
+    status: ContentStatus;
+    platformPostId: string;
+  }) => void;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={title}
+      description={description}
+      size="md"
+      footer={
+        <>
+          <button className="btn-secondary" type="button" onClick={onClose}>
+            Cancelar
+          </button>
+          <button className="btn-primary" type="button" onClick={onSave} disabled={!form.assetId || !form.scheduledAt}>
+            <Save className="h-4 w-4" />
+            Guardar
+          </button>
+        </>
+      }
+    >
+      <div className="grid gap-4">
+        <Field label="Pieza">
+          <select className="select" value={form.assetId} onChange={(event) => onFormChange({ ...form, assetId: event.target.value })}>
+            {assets.map((asset) => (
+              <option key={asset.id} value={asset.id}>
+                {asset.title}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Fecha y hora">
+          <input className="input" type="datetime-local" value={form.scheduledAt} onChange={(event) => onFormChange({ ...form, scheduledAt: event.target.value })} />
+        </Field>
+        <Field label="Canal">
+          <select className="select" value={form.channel} onChange={(event) => onFormChange({ ...form, channel: event.target.value as Channel })}>
+            {channels.map((channel) => (
+              <option key={channel} value={channel}>
+                {channel.replaceAll("_", " ")}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Estado">
+          <select className="select" value={form.status} onChange={(event) => onFormChange({ ...form, status: event.target.value as ContentStatus })}>
+            {publicationStatuses.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="ID de plataforma">
+          <input className="input" value={form.platformPostId} onChange={(event) => onFormChange({ ...form, platformPostId: event.target.value })} />
+        </Field>
+      </div>
+    </Modal>
   );
 }

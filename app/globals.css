@@ -4,19 +4,112 @@
 
 :root {
   color-scheme: light;
-  --color-ink: oklch(19% 0.018 260);
-  --color-paper: oklch(97% 0.006 260);
-  --color-surface: oklch(99% 0.003 260);
-  --color-line: oklch(90% 0.012 260);
-  --color-muted: oklch(45% 0.025 260);
-  --color-accent: oklch(56% 0.145 252);
-  --color-accent-deep: oklch(48% 0.15 252);
-  --color-risk: oklch(61% 0.135 38);
+  --rgb-ink: 29 29 31;
+  --rgb-paper: 245 245 247;
+  --rgb-surface: 255 255 255;
+  --rgb-muted: 110 110 115;
+  --rgb-line: 229 229 234;
+  --rgb-blue: 0 113 227;
+  --rgb-violet: 175 82 222;
+  --rgb-success: 52 199 89;
+  --rgb-error: 255 59 48;
+  --rgb-warning: 255 149 0;
+  --rgb-info: 50 173 230;
+  --color-ink: rgb(var(--rgb-ink));
+  --color-paper: rgb(var(--rgb-paper));
+  --color-surface: rgb(var(--rgb-surface));
+  --color-line: rgb(var(--rgb-line));
+  --color-muted: rgb(var(--rgb-muted));
+  --color-accent: rgb(var(--rgb-blue));
+  --color-accent-deep: rgb(0 119 237);
+  --color-risk: rgb(var(--rgb-error));
+  --button-primary-bg: rgb(29 29 31);
+  --button-primary-text: rgb(255 255 255);
+  --button-secondary-bg: rgba(0, 0, 0, 0.06);
+  --button-secondary-text: rgb(29 29 31);
+  --button-ghost-text: rgba(29, 29, 31, 0.72);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.06);
+  --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.18), 0 8px 20px rgba(0, 0, 0, 0.08);
+  --glow-active: 0 0 0 rgba(111, 76, 255, 0);
+  --glow-violet: 0 0 0 rgba(111, 76, 255, 0);
+  --glow-success: 0 0 0 rgba(38, 159, 107, 0);
+  --glow-error: 0 0 0 rgba(222, 83, 72, 0);
+  --glow-warning: 0 0 0 rgba(230, 166, 61, 0);
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.625rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
   --font-body: "Aptos", "Segoe UI Variable", "Segoe UI", sans-serif;
   --font-display: "Aptos Display", "Segoe UI Variable Display", "Segoe UI", sans-serif;
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --wa-bg: #e8f1e8;
+  --wa-panel: #f7f7f7;
+  --wa-header: #f6f6f6;
+  --wa-text: #111b21;
+  --wa-muted: #667781;
+  --wa-muted-dark: #54656f;
+  --wa-incoming: #ffffff;
+  --wa-outgoing: #d9fdd3;
+  --wa-input: #ffffff;
+  --wa-chip: #eef1f3;
+  --wa-accent: #00a884;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --rgb-ink: 245 245 247;
+  --rgb-paper: 0 0 0;
+  --rgb-surface: 28 28 30;
+  --rgb-muted: 174 174 178;
+  --rgb-line: 58 58 60;
+  --rgb-blue: 10 132 255;
+  --rgb-violet: 191 90 242;
+  --rgb-success: 48 209 88;
+  --rgb-error: 255 69 58;
+  --rgb-warning: 255 159 10;
+  --rgb-info: 100 210 255;
+  --color-accent-deep: rgb(64 156 255);
+  --button-primary-bg: rgb(var(--rgb-blue));
+  --button-primary-text: rgb(255 255 255);
+  --button-secondary-bg: rgba(255, 255, 255, 0.10);
+  --button-secondary-text: rgb(245 245 247);
+  --button-ghost-text: rgba(245, 245, 247, 0.72);
+  --shadow-sm: 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+  --shadow-md: 0 0 0 0.5px rgba(255, 255, 255, 0.10);
+  --shadow-lg: 0 0 0 0.5px rgba(255, 255, 255, 0.12), 0 18px 44px rgba(0, 0, 0, 0.42);
+  --shadow-xl: 0 0 0 0.5px rgba(255, 255, 255, 0.14), 0 32px 84px rgba(0, 0, 0, 0.55);
+  --glow-active: 0 0 24px rgba(191, 90, 242, 0.34);
+  --glow-violet: 0 0 34px rgba(191, 90, 242, 0.32);
+  --glow-success: 0 0 24px rgba(58, 205, 138, 0.28);
+  --glow-error: 0 0 24px rgba(255, 104, 94, 0.30);
+  --glow-warning: 0 0 24px rgba(255, 190, 89, 0.28);
+  --wa-bg: #0b141a;
+  --wa-panel: #111b21;
+  --wa-header: #202c33;
+  --wa-text: #e9edef;
+  --wa-muted: #8696a0;
+  --wa-muted-dark: #667781;
+  --wa-incoming: #202c33;
+  --wa-outgoing: #005c4b;
+  --wa-input: #2a3942;
+  --wa-chip: #172229;
+  --wa-accent: #00a884;
 }
 
 * {
@@ -26,6 +119,13 @@
 html,
 body {
   min-height: 100%;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: 0;
 }
 
 body {
@@ -53,22 +153,55 @@ button {
 
 @layer components {
   .btn-primary {
-    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50;
+    background: var(--button-primary-bg);
+    color: var(--button-primary-text);
     transition-property: transform, background-color, box-shadow, opacity;
     transition-duration: 160ms;
     transition-timing-function: var(--ease-out-strong);
   }
 
   .btn-secondary {
-    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-50;
-    background-color: var(--color-surface);
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-ink/10 px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50;
+    background: var(--button-secondary-bg);
+    color: var(--button-secondary-text);
     transition-property: transform, background-color, border-color, box-shadow, opacity;
     transition-duration: 160ms;
     transition-timing-function: var(--ease-out-strong);
   }
 
   .btn-danger {
-    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-coral px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-coral px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50;
+    transition-property: transform, background-color, box-shadow, opacity;
+    transition-duration: 160ms;
+    transition-timing-function: var(--ease-out-strong);
+  }
+
+  .btn-ghost {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-full px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50;
+    color: var(--button-ghost-text);
+    transition-property: transform, background-color, color, opacity;
+    transition-duration: 160ms;
+    transition-timing-function: var(--ease-out-strong);
+  }
+
+  .btn-soft {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-violet/10 px-4 py-2 text-sm font-medium text-violet disabled:cursor-not-allowed disabled:opacity-50;
+    transition-property: transform, background-color, box-shadow, opacity;
+    transition-duration: 160ms;
+    transition-timing-function: var(--ease-out-strong);
+  }
+
+  .btn-outline {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-violet/35 bg-transparent px-4 py-2 text-sm font-medium text-violet disabled:cursor-not-allowed disabled:opacity-50;
+    transition-property: transform, background-color, border-color, box-shadow, opacity;
+    transition-duration: 160ms;
+    transition-timing-function: var(--ease-out-strong);
+  }
+
+  .btn-violet {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-violet px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50;
+    box-shadow: var(--glow-violet);
     transition-property: transform, background-color, box-shadow, opacity;
     transition-duration: 160ms;
     transition-timing-function: var(--ease-out-strong);
@@ -76,36 +209,50 @@ button {
 
   .btn-primary:active,
   .btn-secondary:active,
-  .btn-danger:active {
+  .btn-danger:active,
+  .btn-ghost:active,
+  .btn-soft:active,
+  .btn-outline:active,
+  .btn-violet:active {
     transform: scale(0.97);
   }
 
   .btn-primary:focus-visible,
   .btn-secondary:focus-visible,
-  .btn-danger:focus-visible {
+  .btn-danger:focus-visible,
+  .btn-ghost:focus-visible,
+  .btn-soft:focus-visible,
+  .btn-outline:focus-visible,
+  .btn-violet:focus-visible {
     outline: 2px solid color-mix(in oklch, var(--color-accent) 36%, transparent);
     outline-offset: 2px;
   }
 
   .input {
-    @apply w-full rounded-xl border border-ink/15 bg-white px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/35 focus:border-moss focus:ring-2 focus:ring-moss/15;
-    background-color: var(--color-surface);
+    @apply w-full rounded-xl border px-3 py-2 text-sm outline-none;
+    background-color: color-mix(in srgb, var(--color-surface) 94%, var(--color-paper));
+    border-color: color-mix(in srgb, var(--color-ink) 14%, transparent);
+    color: var(--color-ink);
     transition-property: border-color, box-shadow, background-color;
     transition-duration: 150ms;
     transition-timing-function: var(--ease-out-strong);
   }
 
   .textarea {
-    @apply min-h-28 w-full rounded-xl border border-ink/15 bg-white px-3 py-2 text-sm leading-6 text-ink outline-none placeholder:text-ink/35 focus:border-moss focus:ring-2 focus:ring-moss/15;
-    background-color: var(--color-surface);
+    @apply min-h-28 w-full rounded-xl border px-3 py-2 text-sm leading-6 outline-none;
+    background-color: color-mix(in srgb, var(--color-surface) 94%, var(--color-paper));
+    border-color: color-mix(in srgb, var(--color-ink) 14%, transparent);
+    color: var(--color-ink);
     transition-property: border-color, box-shadow, background-color;
     transition-duration: 150ms;
     transition-timing-function: var(--ease-out-strong);
   }
 
   .select {
-    @apply w-full rounded-xl border border-ink/15 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-moss focus:ring-2 focus:ring-moss/15;
-    background-color: var(--color-surface);
+    @apply w-full rounded-xl border px-3 py-2 text-sm outline-none;
+    background-color: color-mix(in srgb, var(--color-surface) 94%, var(--color-paper));
+    border-color: color-mix(in srgb, var(--color-ink) 14%, transparent);
+    color: var(--color-ink);
     transition-property: border-color, box-shadow, background-color;
     transition-duration: 150ms;
     transition-timing-function: var(--ease-out-strong);
@@ -113,6 +260,64 @@ button {
 
   .table-cell {
     @apply px-4 py-3 text-sm align-top;
+  }
+
+  .dropdown-panel {
+    @apply rounded-2xl border border-ink/10 bg-[var(--color-surface)] p-2 shadow-panel;
+    transform-origin: top;
+    transition: opacity 160ms var(--ease-out-strong), transform 160ms var(--ease-out-strong);
+  }
+
+  .data-table {
+    @apply w-full border-collapse overflow-hidden rounded-2xl border border-ink/10 bg-[var(--color-surface)] text-sm;
+  }
+
+  .data-table tbody tr:nth-child(odd) {
+    background: color-mix(in srgb, var(--color-paper) 68%, transparent);
+  }
+
+  .data-table tbody tr {
+    transition: background-color 150ms var(--ease-out-strong);
+  }
+
+  .skeleton {
+    @apply rounded-xl bg-ink/10;
+    background-image: linear-gradient(90deg, transparent, color-mix(in srgb, white 35%, transparent), transparent);
+    background-size: 220% 100%;
+    animation: skeleton-shimmer 1.2s linear infinite;
+  }
+
+  .toast {
+    @apply rounded-2xl border border-ink/10 bg-[var(--color-surface)] px-4 py-3 text-sm shadow-panel;
+    transition: transform 180ms var(--ease-out-strong), opacity 180ms var(--ease-out-strong);
+  }
+
+  .toast-success {
+    box-shadow: var(--glow-success);
+  }
+
+  .toast-error {
+    box-shadow: var(--glow-error);
+  }
+
+  .toast-warning {
+    box-shadow: var(--glow-warning);
+  }
+
+  .toast-info {
+    box-shadow: var(--glow-violet);
+  }
+
+  .input:focus,
+  .textarea:focus,
+  .select:focus {
+    border-color: color-mix(in srgb, var(--color-accent) 70%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 16%, transparent);
+  }
+
+  .input::placeholder,
+  .textarea::placeholder {
+    color: color-mix(in srgb, var(--color-ink) 35%, transparent);
   }
 }
 
@@ -174,6 +379,136 @@ button {
     transition-timing-function: var(--ease-out-strong);
   }
 
+  .sidebar-shell {
+    transition-property: width, box-shadow, background-color, border-color;
+    transition-duration: 240ms;
+    transition-timing-function: var(--ease-drawer);
+  }
+
+  .theme-toggle {
+    @apply pressable inline-flex h-10 w-16 items-center rounded-full border border-ink/10 bg-[var(--color-surface)] p-1;
+  }
+
+  .theme-toggle-track {
+    @apply relative block h-full w-full rounded-full bg-paper;
+  }
+
+  .theme-toggle-thumb {
+    @apply absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-full bg-white text-ink shadow-sm;
+    transition-property: transform, background-color, color, box-shadow;
+    transition-duration: 220ms;
+    transition-timing-function: var(--ease-drawer);
+  }
+
+  :root[data-theme="dark"] .theme-toggle-thumb {
+    transform: translateX(1.5rem);
+    background: rgb(var(--rgb-violet));
+    color: white;
+    box-shadow: var(--glow-violet);
+  }
+
+  .sidebar-collapse {
+    @apply pressable absolute -right-3 top-6 z-30 flex h-7 w-7 items-center justify-center rounded-full border text-ink/60;
+    background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+    border-color: color-mix(in srgb, var(--color-ink) 10%, transparent);
+    box-shadow: var(--shadow-md);
+    backdrop-filter: saturate(180%) blur(18px);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+  }
+
+  .glass-surface {
+    background: color-mix(in srgb, var(--color-surface) 76%, transparent);
+    border: 0.5px solid color-mix(in srgb, var(--color-ink) 10%, transparent);
+    box-shadow: var(--shadow-md);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+  }
+
+  .whatsapp-phone {
+    position: relative;
+    overflow: hidden;
+    border-radius: 34px;
+    border: 8px solid color-mix(in srgb, var(--color-ink) 86%, black);
+    background: var(--wa-panel);
+    box-shadow: var(--shadow-xl);
+    color: var(--wa-text);
+    max-width: 390px;
+    min-height: 620px;
+    margin-inline: auto;
+  }
+
+  .whatsapp-notch {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    z-index: 2;
+    height: 18px;
+    width: 92px;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: color-mix(in srgb, black 88%, transparent);
+  }
+
+  .whatsapp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 34px 16px 12px;
+    background: var(--wa-header);
+    border-bottom: 1px solid color-mix(in srgb, var(--wa-text) 8%, transparent);
+  }
+
+  .whatsapp-chat {
+    min-height: 475px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px 12px;
+    background:
+      radial-gradient(circle at 12% 20%, color-mix(in srgb, var(--wa-accent) 9%, transparent) 0 1px, transparent 1px),
+      linear-gradient(var(--wa-bg), var(--wa-bg));
+    background-size: 22px 22px, auto;
+  }
+
+  .wa-bubble {
+    max-width: 82%;
+    border-radius: 18px;
+    padding: 9px 11px 7px;
+    font-size: 13px;
+    line-height: 1.45;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+  }
+
+  .wa-incoming {
+    align-self: flex-start;
+    background: var(--wa-incoming);
+    border-top-left-radius: 6px;
+  }
+
+  .wa-outgoing {
+    align-self: flex-end;
+    background: var(--wa-outgoing);
+    border-top-right-radius: 6px;
+  }
+
+  .wa-time {
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    color: var(--wa-muted);
+  }
+
+  .whatsapp-compose {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px 14px;
+    background: var(--wa-panel);
+  }
+
   .stagger-list > * {
     animation: list-item-in 220ms var(--ease-out-strong) both;
   }
@@ -207,7 +542,7 @@ button {
   }
 
   .btn-secondary:hover {
-    background-color: color-mix(in oklch, var(--color-ink) 4%, white);
+    background-color: color-mix(in srgb, var(--button-secondary-bg) 72%, var(--color-ink) 8%);
     border-color: color-mix(in oklch, var(--color-ink) 16%, transparent);
     box-shadow: 0 8px 20px color-mix(in oklch, var(--color-ink) 7%, transparent);
     transform: translateY(-1px);
@@ -216,6 +551,18 @@ button {
   .btn-danger:hover {
     background-color: color-mix(in oklch, var(--color-risk) 92%, black);
     box-shadow: 0 10px 24px color-mix(in oklch, var(--color-risk) 18%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .btn-ghost:hover {
+    background-color: color-mix(in srgb, var(--color-ink) 7%, transparent);
+    color: var(--color-ink);
+  }
+
+  .btn-soft:hover,
+  .btn-outline:hover,
+  .btn-violet:hover {
+    box-shadow: var(--glow-violet);
     transform: translateY(-1px);
   }
 
@@ -236,6 +583,10 @@ button {
 
   .pressable:hover {
     transform: translateY(-1px);
+  }
+
+  .data-table tbody tr:hover {
+    background: color-mix(in srgb, rgb(var(--rgb-violet)) 8%, var(--color-surface));
   }
 }
 
@@ -269,6 +620,15 @@ button {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 220% 0;
+  }
+  to {
+    background-position: -220% 0;
   }
 }
 

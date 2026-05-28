@@ -9,6 +9,23 @@ const pillarAuthority = "pillar_autoridad";
 const pillarSales = "pillar_venta";
 
 export const initialWorkspace: WorkspaceState = {
+  settings: {
+    theme: "system",
+    sidebarCollapsed: false,
+    moduleLabels: {
+      dashboard: "Panel",
+      business: "Configuracion",
+      products: "Productos",
+      content: "Contenido",
+      calendar: "Calendario",
+      designs: "Disenos",
+      leads: "Leads",
+      connections: "Conexiones",
+      analytics: "Analitica",
+      automations: "Automatizaciones"
+    },
+    updatedAt: todayIso()
+  },
   business: {
     id: businessId,
     ownerId: "owner_demo",
@@ -241,7 +258,7 @@ export const initialWorkspace: WorkspaceState = {
     {
       id: "capture_weekly_demo",
       businessId,
-      name: "Motor semanal de captacion organica",
+      name: "Automatizacion semanal de captacion",
       objective: "captar_leads",
       productId: productB,
       channels: ["instagram_post", "instagram_reel", "facebook", "tiktok", "whatsapp"],

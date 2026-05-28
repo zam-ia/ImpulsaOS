@@ -81,17 +81,17 @@ export function StatCard({
 export function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
     draft: "bg-ink/8 text-ink",
-    needs_review: "bg-saffron/30 text-ink",
+    needs_review: "bg-saffron/20 text-saffron",
     approved: "bg-moss/12 text-moss",
     scheduled: "bg-peacock/12 text-peacock",
-    published: "bg-moss text-[var(--color-surface)]",
+    published: "bg-moss text-white",
     rejected: "bg-coral/12 text-coral",
-    failed: "bg-coral text-[var(--color-surface)]",
-    new: "bg-saffron/30 text-ink",
+    failed: "bg-coral text-white",
+    new: "bg-saffron/20 text-saffron",
     contacted: "bg-peacock/12 text-peacock",
     qualified: "bg-moss/12 text-moss",
     proposal_sent: "bg-ink/8 text-ink",
-    won: "bg-moss text-[var(--color-surface)]",
+    won: "bg-moss text-white",
     lost: "bg-coral/12 text-coral",
     nurture: "bg-paper text-ink"
   };
