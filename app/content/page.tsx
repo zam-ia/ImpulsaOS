@@ -24,7 +24,25 @@ const channels: Array<{ value: Channel; label: string }> = [
   { value: "whatsapp", label: "WhatsApp" }
 ];
 
-const contentStatuses: ContentStatus[] = ["draft", "needs_review", "approved", "scheduled", "published", "rejected", "failed"];
+const contentStatuses: ContentStatus[] = [
+  "draft",
+  "idea_generated",
+  "script_generated",
+  "copy_generated",
+  "design_generated",
+  "needs_review",
+  "approved",
+  "pending_recording",
+  "pending_file",
+  "ready_to_publish",
+  "scheduled",
+  "published",
+  "measured",
+  "reusable",
+  "archived",
+  "rejected",
+  "failed"
+];
 
 type AssetEditForm = {
   title: string;

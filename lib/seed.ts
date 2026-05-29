@@ -29,6 +29,9 @@ export const initialWorkspace: WorkspaceState = {
     },
     updatedAt: todayIso()
   },
+  goals: [],
+  goalPlans: [],
+  activeGoalId: null,
   business: {
     id: businessId,
     ownerId: "owner_demo",

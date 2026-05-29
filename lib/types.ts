@@ -1,9 +1,20 @@
 export type ContentStatus =
   | "draft"
+  | "idea_generated"
+  | "idea_approved"
+  | "script_generated"
+  | "copy_generated"
+  | "design_generated"
   | "needs_review"
   | "approved"
+  | "pending_recording"
+  | "pending_file"
+  | "ready_to_publish"
   | "scheduled"
   | "published"
+  | "measured"
+  | "reusable"
+  | "archived"
   | "rejected"
   | "failed";
 
@@ -70,6 +81,16 @@ export type SocialDataProvider =
   | "manual_csv"
   | "ocr"
   | "whisper";
+export type GoalType =
+  | "followers_growth"
+  | "lead_generation"
+  | "course_sales"
+  | "brand_positioning"
+  | "community_engagement"
+  | "audience_reactivation";
+export type GoalStatus = "draft" | "active" | "paused" | "completed" | "archived";
+export type GoalDeadlineMode = "this_month" | "15_days" | "30_days" | "specific_campaign";
+export type GoalPriority = "high" | "medium" | "low";
 export type ModuleKey =
   | "dashboard"
   | "business"
@@ -238,6 +259,7 @@ export interface ContentPillar {
 export interface ContentIdea {
   id: string;
   businessId: string;
+  goalId?: string | null;
   productId: string | null;
   pillarId: string | null;
   title: string;
@@ -246,6 +268,9 @@ export interface ContentIdea {
   format: string;
   objective: ContentObjective;
   viralScore: number;
+  salesScore?: number;
+  priority?: GoalPriority;
+  productionDifficulty?: "low" | "medium" | "high";
   status: ContentStatus;
   scheduledDay: string;
   createdAt: string;
@@ -262,6 +287,7 @@ export interface QaResult {
 export interface ContentAsset {
   id: string;
   ideaId: string;
+  goalId?: string | null;
   productId: string | null;
   assetType: "copy" | "script" | "design" | "visual_prompt" | "video";
   channel: Channel;
@@ -275,6 +301,9 @@ export interface ContentAsset {
   referenceImageUrls?: string[];
   videoConfig?: VideoGenerationSettings;
   videoTask?: VideoGenerationTask;
+  recordingChecklist?: string[];
+  suggestedScenes?: string[];
+  suggestedTakes?: string[];
   qa: QaResult;
   status: ContentStatus;
   createdAt: string;
@@ -304,10 +333,18 @@ export interface CompetitorProfile {
   id: string;
   businessId: string;
   platform: SocialPlatform;
+  type?: "creator" | "educational_brand" | "direct_competitor" | "aspirational" | "health_influencer" | "trend_account";
   name: string;
   handle: string;
   profileUrl: string;
+  instagramUrl?: string;
+  facebookUrl?: string;
+  tiktokUrl?: string;
   niche: string;
+  country?: string;
+  audience?: string;
+  relevanceLevel?: "high" | "medium" | "low";
+  analysisStatus?: "pending" | "saved" | "analyzing" | "analyzed" | "archived";
   notes: string;
   trackedFormats: string[];
   isActive: boolean;
@@ -319,6 +356,48 @@ export interface CompetitorProfile {
     topHook: string;
   };
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface StrategicGoal {
+  id: string;
+  businessId: string;
+  name: string;
+  type: GoalType;
+  targetNumber: number;
+  currentNumber: number;
+  startDate: string;
+  endDate: string;
+  deadlineMode: GoalDeadlineMode;
+  channels: Channel[];
+  productId: string | null;
+  audience: string;
+  restrictions: string[];
+  mainStrategy: string;
+  status: GoalStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GoalPlan {
+  goalId: string;
+  diagnostic: string;
+  gap: number;
+  recommendedStrategy: string;
+  contentPillars: Array<{ name: string; weight: number; objective: ContentObjective }>;
+  monthlyProduction: {
+    reels: number;
+    carousels: number;
+    flyers: number;
+    proofPosts: number;
+    communityPosts: number;
+    softSalesPosts: number;
+  };
+  priorityIdeas: string[];
+  scriptsToRecord: string[];
+  suggestedCalendar: string[];
+  kpis: string[];
+  risks: string[];
   updatedAt: string;
 }
 
@@ -470,6 +549,9 @@ export interface AiRun {
 
 export interface WorkspaceState {
   settings: AppSettings;
+  goals: StrategicGoal[];
+  goalPlans: GoalPlan[];
+  activeGoalId: string | null;
   business: Business;
   brand: BrandProfile;
   products: Product[];

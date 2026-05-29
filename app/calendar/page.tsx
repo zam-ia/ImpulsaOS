@@ -8,7 +8,7 @@ import { useWorkspace } from "@/lib/store";
 import type { Channel, ContentStatus, Publication } from "@/lib/types";
 import { shortDate } from "@/lib/utils";
 
-const publicationStatuses: ContentStatus[] = ["needs_review", "approved", "scheduled", "published", "failed"];
+const publicationStatuses: ContentStatus[] = ["needs_review", "approved", "pending_recording", "ready_to_publish", "scheduled", "published", "measured", "failed"];
 const channels: Channel[] = ["facebook", "instagram_post", "instagram_reel", "instagram_story", "tiktok", "whatsapp"];
 
 function toDatetimeLocal(value: string) {

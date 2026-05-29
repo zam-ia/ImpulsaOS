@@ -51,10 +51,17 @@ export default function AnalyticsPage() {
   const [loadingData, setLoadingData] = useState(true);
   const [creatorForm, setCreatorForm] = useState({
     platform: "instagram" as SocialPlatform,
+    type: "direct_competitor" as NonNullable<CompetitorProfile["type"]>,
     name: "Nuevo creador",
     handle: "",
     profileUrl: "",
+    instagramUrl: "",
+    facebookUrl: "",
+    tiktokUrl: "",
     niche: "",
+    country: "Peru",
+    audience: "Profesionales de salud",
+    relevanceLevel: "medium" as NonNullable<CompetitorProfile["relevanceLevel"]>,
     notes: "",
     trackedFormats: "reel auditoria\ncarrusel educativo\nstory CTA",
     isActive: true,
@@ -126,10 +133,18 @@ export default function AnalyticsPage() {
     event.preventDefault();
     addCompetitorProfile({
       platform: creatorForm.platform,
+      type: creatorForm.type,
       name: creatorForm.name,
       handle: creatorForm.handle,
-      profileUrl: creatorForm.profileUrl,
+      profileUrl: creatorForm.profileUrl || creatorForm.instagramUrl || creatorForm.facebookUrl || creatorForm.tiktokUrl,
+      instagramUrl: creatorForm.instagramUrl,
+      facebookUrl: creatorForm.facebookUrl,
+      tiktokUrl: creatorForm.tiktokUrl,
       niche: creatorForm.niche,
+      country: creatorForm.country,
+      audience: creatorForm.audience,
+      relevanceLevel: creatorForm.relevanceLevel,
+      analysisStatus: "saved",
       notes: creatorForm.notes,
       trackedFormats: creatorForm.trackedFormats
         .split("\n")
@@ -541,17 +556,57 @@ export default function AnalyticsPage() {
                 ))}
               </select>
             </Field>
+            <Field label="Tipo">
+              <select
+                className="select"
+                value={creatorForm.type}
+                onChange={(event) => setCreatorForm({ ...creatorForm, type: event.target.value as NonNullable<CompetitorProfile["type"]> })}
+              >
+                <option value="creator">Creador individual</option>
+                <option value="educational_brand">Marca educativa</option>
+                <option value="direct_competitor">Competidor directo</option>
+                <option value="aspirational">Referente aspiracional</option>
+                <option value="health_influencer">Influencer salud</option>
+                <option value="trend_account">Cuenta de tendencias</option>
+              </select>
+            </Field>
             <Field label="Nombre">
               <input className="input" value={creatorForm.name} onChange={(event) => setCreatorForm({ ...creatorForm, name: event.target.value })} />
             </Field>
-            <Field label="URL">
+            <Field label="URL principal">
               <input className="input" value={creatorForm.profileUrl} onChange={(event) => setCreatorForm({ ...creatorForm, profileUrl: event.target.value })} />
+            </Field>
+            <Field label="Instagram URL">
+              <input className="input" value={creatorForm.instagramUrl} onChange={(event) => setCreatorForm({ ...creatorForm, instagramUrl: event.target.value })} />
+            </Field>
+            <Field label="Facebook URL">
+              <input className="input" value={creatorForm.facebookUrl} onChange={(event) => setCreatorForm({ ...creatorForm, facebookUrl: event.target.value })} />
+            </Field>
+            <Field label="TikTok URL">
+              <input className="input" value={creatorForm.tiktokUrl} onChange={(event) => setCreatorForm({ ...creatorForm, tiktokUrl: event.target.value })} />
             </Field>
             <Field label="Handle">
               <input className="input" value={creatorForm.handle} onChange={(event) => setCreatorForm({ ...creatorForm, handle: event.target.value })} />
             </Field>
             <Field label="Nicho">
               <input className="input" value={creatorForm.niche} onChange={(event) => setCreatorForm({ ...creatorForm, niche: event.target.value })} />
+            </Field>
+            <Field label="Pais">
+              <input className="input" value={creatorForm.country} onChange={(event) => setCreatorForm({ ...creatorForm, country: event.target.value })} />
+            </Field>
+            <Field label="Publico objetivo">
+              <input className="input" value={creatorForm.audience} onChange={(event) => setCreatorForm({ ...creatorForm, audience: event.target.value })} />
+            </Field>
+            <Field label="Nivel de relevancia">
+              <select
+                className="select"
+                value={creatorForm.relevanceLevel}
+                onChange={(event) => setCreatorForm({ ...creatorForm, relevanceLevel: event.target.value as NonNullable<CompetitorProfile["relevanceLevel"]> })}
+              >
+                <option value="high">Alto</option>
+                <option value="medium">Medio</option>
+                <option value="low">Bajo</option>
+              </select>
             </Field>
             <Field label="Posts analizados">
               <input

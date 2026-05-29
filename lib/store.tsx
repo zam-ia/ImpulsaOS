@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { generateSingleCopy, generateWeeklyPlan } from "@/lib/ai";
 import { computeAnalytics } from "@/lib/analytics";
 import { renderDesignSvg } from "@/lib/design";
+import { createStrategicGoal, generateGoalContentPackage, generateGoalPlan, type GoalInput } from "@/lib/goal-engine";
 import { initialWorkspace } from "@/lib/seed";
 import {
   normalizeSocialPostMetric,
@@ -23,6 +24,7 @@ import type {
   Lead,
   LeadStage,
   AppSettings,
+  StrategicGoal,
   OrganicCaptureCampaign,
   PricePlan,
   Product,
@@ -40,6 +42,10 @@ const STORAGE_KEY = "growthbrain-local-state-v1";
 interface WorkspaceContextValue {
   state: WorkspaceState;
   analytics: ReturnType<typeof computeAnalytics>;
+  createGoal: (goal: GoalInput) => string;
+  setActiveGoal: (goalId: string) => void;
+  updateGoal: (goalId: string, goal: Partial<StrategicGoal>) => void;
+  generateGoalContent: (goalId: string) => void;
   updateSettings: (settings: Partial<AppSettings>) => void;
   updateBusiness: (business: Partial<Business>) => void;
   updateBrand: (brand: Partial<BrandProfile>) => void;
@@ -117,6 +123,9 @@ function readStoredState(): WorkspaceState | null {
           ...parsed.settings?.moduleLabels
         }
       },
+      goals: parsed.goals ?? initialWorkspace.goals,
+      goalPlans: parsed.goalPlans ?? initialWorkspace.goalPlans,
+      activeGoalId: parsed.activeGoalId ?? initialWorkspace.activeGoalId,
       connections: parsed.connections ?? initialWorkspace.connections,
       competitorProfiles: parsed.competitorProfiles ?? initialWorkspace.competitorProfiles,
       socialPostMetrics: parsed.socialPostMetrics ?? initialWorkspace.socialPostMetrics,
@@ -140,6 +149,59 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
+
+  const createGoal = useCallback<WorkspaceContextValue["createGoal"]>((goalInput) => {
+    let createdId = "";
+    setState((current) => {
+      const strategicGoal = createStrategicGoal(current.business.id, goalInput);
+      createdId = strategicGoal.id;
+      return {
+        ...current,
+        goals: [strategicGoal, ...current.goals.map((item) => ({ ...item, status: item.status === "active" ? "paused" : item.status }))],
+        goalPlans: [generateGoalPlan(strategicGoal), ...current.goalPlans],
+        activeGoalId: strategicGoal.id
+      };
+    });
+    return createdId;
+  }, []);
+
+  const setActiveGoal = useCallback((goalId: string) => {
+    setState((current) => ({
+      ...current,
+      activeGoalId: goalId,
+      goals: current.goals.map((goal) =>
+        goal.id === goalId ? { ...goal, status: "active", updatedAt: todayIso() } : { ...goal, status: goal.status === "active" ? "paused" : goal.status }
+      )
+    }));
+  }, []);
+
+  const updateGoal = useCallback<WorkspaceContextValue["updateGoal"]>((goalId, goalPatch) => {
+    setState((current) => {
+      const goals = current.goals.map((goal) => (goal.id === goalId ? { ...goal, ...goalPatch, updatedAt: todayIso() } : goal));
+      const updatedGoal = goals.find((goal) => goal.id === goalId);
+      return {
+        ...current,
+        goals,
+        goalPlans: updatedGoal
+          ? [generateGoalPlan(updatedGoal), ...current.goalPlans.filter((plan) => plan.goalId !== goalId)]
+          : current.goalPlans
+      };
+    });
+  }, []);
+
+  const generateGoalContent = useCallback((goalId: string) => {
+    setState((current) => {
+      const generated = generateGoalContentPackage(current, goalId);
+      if (!generated) return current;
+      return {
+        ...current,
+        goalPlans: [generated.plan, ...current.goalPlans.filter((plan) => plan.goalId !== goalId)],
+        ideas: [...generated.ideas, ...current.ideas],
+        assets: [...generated.assets, ...current.assets],
+        publications: [...generated.publications, ...current.publications]
+      };
+    });
+  }, []);
 
   const updateSettings = useCallback((settings: Partial<AppSettings>) => {
     setState((current) => ({
@@ -468,13 +530,48 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateAssetStatus = useCallback((assetId: string, status: ContentStatus) => {
-    setState((current) => ({
-      ...current,
-      assets: current.assets.map((asset) => (asset.id === assetId ? { ...asset, status } : asset)),
-      publications: current.publications.map((publication) =>
-        publication.assetId === assetId ? { ...publication, status } : publication
-      )
-    }));
+    setState((current) => {
+      const asset = current.assets.find((item) => item.id === assetId);
+      const nextStatus = status === "approved" && asset?.assetType === "video" ? "pending_recording" : status;
+      const hasPublication = current.publications.some((publication) => publication.assetId === assetId);
+      const publicationToAdd =
+        status === "approved" && asset && asset.assetType !== "video" && !hasPublication
+          ? [
+              {
+                id: makeId("pub"),
+                assetId,
+                channel: asset.channel,
+                connectionId: current.captureCampaigns[0]?.targetConnectionIds?.[0] ?? null,
+                scheduledAt: addDaysIso(1, 11),
+                publishedAt: null,
+                platformPostId: null,
+                status: "ready_to_publish" as ContentStatus,
+                metrics: { impressions: 0, reach: 0, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0 }
+              }
+            ]
+          : [];
+      return {
+        ...current,
+        assets: current.assets.map((item) =>
+          item.id === assetId
+            ? {
+                ...item,
+                status: nextStatus,
+                qa:
+                  status === "approved"
+                    ? { ...item.qa, needsReview: false, qaNotes: [...item.qa.qaNotes, "Aprobado y enviado al siguiente paso."] }
+                    : item.qa
+              }
+            : item
+        ),
+        publications: [
+          ...publicationToAdd,
+          ...current.publications.map((publication) =>
+            publication.assetId === assetId ? { ...publication, status: status === "approved" ? "ready_to_publish" : status } : publication
+          )
+        ]
+      };
+    });
   }, []);
 
   const addPublication = useCallback<WorkspaceContextValue["addPublication"]>((publication) => {
@@ -908,6 +1005,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     () => ({
       state,
       analytics,
+      createGoal,
+      setActiveGoal,
+      updateGoal,
+      generateGoalContent,
       updateSettings,
       updateBusiness,
       updateBrand,
@@ -944,6 +1045,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     [
       state,
       analytics,
+      createGoal,
+      setActiveGoal,
+      updateGoal,
+      generateGoalContent,
       updateSettings,
       updateBusiness,
       updateBrand,
