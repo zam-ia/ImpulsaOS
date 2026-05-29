@@ -18,7 +18,7 @@ export const initialWorkspace: WorkspaceState = {
       products: "Productos",
       content: "Contenido",
       calendar: "Calendario",
-      designs: "Disenos",
+      designs: "Creacion",
       leads: "Leads",
       connections: "Conexiones",
       analytics: "Analitica",

@@ -24,6 +24,8 @@ import type {
   Publication,
   ResearchInsight,
   SocialConnection,
+  VideoGenerationSettings,
+  VideoGenerationTask,
   WorkspaceState
 } from "@/lib/types";
 import { addDaysIso, makeId, todayIso } from "@/lib/utils";
@@ -45,6 +47,17 @@ interface WorkspaceContextValue {
     templateId: string;
     prompt: string;
     copy: string;
+    targetConnectionIds?: string[];
+    referenceImageUrls?: string[];
+  }) => string;
+  createVideoAsset: (input: {
+    title: string;
+    productId: string | null;
+    channel: Channel;
+    prompt: string;
+    copy: string;
+    videoConfig: VideoGenerationSettings;
+    videoTask?: VideoGenerationTask;
     targetConnectionIds?: string[];
     referenceImageUrls?: string[];
   }) => string;
@@ -240,6 +253,65 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         ...current,
         ideas: [idea, ...current.ideas],
         assets: [{ ...baseAsset, designSvg }, ...current.assets]
+      };
+    });
+    return assetId;
+  }, []);
+
+  const createVideoAsset = useCallback<WorkspaceContextValue["createVideoAsset"]>((input) => {
+    const assetId = makeId("asset");
+    setState((current) => {
+      const ideaId = makeId("idea");
+      const product = input.productId ? current.products.find((item) => item.id === input.productId) ?? null : null;
+      const idea: ContentIdea = {
+        id: ideaId,
+        businessId: current.business.id,
+        productId: input.productId,
+        pillarId: null,
+        title: input.title,
+        angle: "Video corto generado con arquitectura tipo MoneyPrinterTurbo.",
+        hook: input.copy.split("\n").find(Boolean) ?? input.prompt,
+        format: input.videoConfig.aspect === "9:16" ? "Short vertical" : input.videoConfig.aspect === "16:9" ? "Video horizontal" : "Video cuadrado",
+        objective: "viralidad",
+        viralScore: 82,
+        status: "needs_review",
+        scheduledDay: addDaysIso(1, 10),
+        createdAt: todayIso()
+      };
+      const asset: ContentAsset = {
+        id: assetId,
+        ideaId,
+        productId: input.productId,
+        assetType: "video",
+        channel: input.channel,
+        title: input.title,
+        copy: input.copy,
+        script: input.videoConfig.script,
+        designTemplateId: input.videoConfig.aspect === "9:16" ? "story_v1" : "post_square_clean_v1",
+        designSvg: "",
+        prompt: input.prompt,
+        targetConnectionIds: input.targetConnectionIds ?? current.captureCampaigns[0]?.targetConnectionIds ?? [],
+        referenceImageUrls: input.referenceImageUrls ?? current.brand.referenceAssets.slice(0, 5),
+        videoConfig: input.videoConfig,
+        videoTask: input.videoTask,
+        qa: {
+          score: 84,
+          riskFlags: [],
+          qaNotes: [
+            "Video preparado con pipeline: guion, terminos, voz, subtitulos, materiales, render y publicacion.",
+            product ? `Producto asociado: ${product.name}` : "Sin producto asociado."
+          ],
+          needsReview: true,
+          blockers: []
+        },
+        status: "needs_review",
+        createdAt: todayIso()
+      };
+
+      return {
+        ...current,
+        ideas: [idea, ...current.ideas],
+        assets: [asset, ...current.assets]
       };
     });
     return assetId;
@@ -766,6 +838,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       addProduct,
       updateProduct,
       addDesignAsset,
+      createVideoAsset,
       generateWeek,
       generateContent,
       updateIdeaStatus,
@@ -797,6 +870,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       addProduct,
       updateProduct,
       addDesignAsset,
+      createVideoAsset,
       generateWeek,
       generateContent,
       updateIdeaStatus,

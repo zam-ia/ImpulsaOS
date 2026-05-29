@@ -19,7 +19,13 @@ export async function insertContentAsset(asset: Partial<ContentAsset> & { busine
     qa_status: asset.qa?.needsReview ? "needs_review" : "approved",
     status: asset.status,
     risk_flags: asset.qa?.riskFlags ?? [],
-    metadata: { designTemplateId: asset.designTemplateId }
+    metadata: {
+      designTemplateId: asset.designTemplateId,
+      targetConnectionIds: asset.targetConnectionIds ?? [],
+      referenceImageUrls: asset.referenceImageUrls ?? [],
+      videoConfig: asset.videoConfig ?? null,
+      videoTask: asset.videoTask ?? null
+    }
   });
 }
 

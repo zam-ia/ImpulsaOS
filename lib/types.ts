@@ -36,6 +36,9 @@ export type Channel =
 
 export type SocialPlatform = "facebook" | "instagram" | "tiktok" | "whatsapp";
 export type ThemePreference = "system" | "light" | "dark";
+export type VideoAspect = "9:16" | "16:9" | "1:1";
+export type VideoSource = "pexels" | "pixabay" | "local" | "manual";
+export type VideoTaskStatus = "draft" | "queued" | "processing" | "completed" | "failed";
 export type ModuleKey =
   | "dashboard"
   | "business"
@@ -229,7 +232,7 @@ export interface ContentAsset {
   id: string;
   ideaId: string;
   productId: string | null;
-  assetType: "copy" | "script" | "design" | "visual_prompt";
+  assetType: "copy" | "script" | "design" | "visual_prompt" | "video";
   channel: Channel;
   title: string;
   copy: string;
@@ -239,6 +242,8 @@ export interface ContentAsset {
   prompt: string;
   targetConnectionIds?: string[];
   referenceImageUrls?: string[];
+  videoConfig?: VideoGenerationSettings;
+  videoTask?: VideoGenerationTask;
   qa: QaResult;
   status: ContentStatus;
   createdAt: string;
@@ -295,6 +300,38 @@ export interface ResearchInsight {
   recommendation: string;
   confidence: number;
   createdAt: string;
+}
+
+export interface VideoGenerationSettings {
+  subject: string;
+  script: string;
+  searchTerms: string[];
+  aspect: VideoAspect;
+  source: VideoSource;
+  voiceName: string;
+  voiceRate: number;
+  voiceVolume: number;
+  bgmType: "random" | "none" | "custom";
+  bgmVolume: number;
+  subtitleEnabled: boolean;
+  subtitlePosition: "top" | "center" | "bottom" | "custom";
+  fontSize: number;
+  clipDuration: number;
+  videoCount: number;
+  materialUrls: string[];
+}
+
+export interface VideoGenerationTask {
+  taskId: string;
+  provider: "moneyprinter" | "local_blueprint";
+  status: VideoTaskStatus;
+  progress: number;
+  videos: string[];
+  combinedVideos: string[];
+  endpoint: string;
+  logs: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Lead {

@@ -6,8 +6,9 @@ import { ImageCropModal } from "@/components/image-crop-modal";
 import { Modal } from "@/components/modal";
 import { EmptyState, Field, PageHeader, Panel, PanelHeader, StatusBadge } from "@/components/ui";
 import { designTemplates, svgDataUri } from "@/lib/design";
+import { generateLocalScript, generateLocalTerms, videoPipelineStages } from "@/lib/moneyprinter";
 import { useWorkspace } from "@/lib/store";
-import type { Channel } from "@/lib/types";
+import type { Channel, VideoAspect, VideoGenerationTask, VideoSource } from "@/lib/types";
 
 const channels: Array<{ value: Channel; label: string }> = [
   { value: "instagram_post", label: "Instagram post" },
@@ -49,12 +50,14 @@ async function downloadPng(filename: string, svg: string) {
 }
 
 export default function DesignsPage() {
-  const { state, addDesignAsset, renderAsset, updateAsset, updateBrand } = useWorkspace();
+  const { state, addDesignAsset, createVideoAsset, renderAsset, updateAsset, updateBrand } = useWorkspace();
   const designable = state.assets.filter((asset) => asset.copy || asset.designSvg || asset.prompt);
   const pageTargets = state.connections.filter((connection) => connection.platform !== "whatsapp");
   const [selectedAssetId, setSelectedAssetId] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
   const [showReferenceModal, setShowReferenceModal] = useState(false);
+  const [isCreatingVideo, setIsCreatingVideo] = useState(false);
   const [form, setForm] = useState({
     title: "Nueva pieza visual",
     productId: state.products[0]?.id ?? "",
@@ -73,6 +76,22 @@ export default function DesignsPage() {
     templateId: "post_square_clean_v1",
     targetConnectionIds: [] as string[],
     referenceImageUrls: [] as string[]
+  });
+  const [videoForm, setVideoForm] = useState({
+    subject: "Como atraer clientes organicos esta semana",
+    productId: state.products[0]?.id ?? "",
+    channel: "instagram_reel" as Channel,
+    aspect: "9:16" as VideoAspect,
+    source: "pexels" as VideoSource,
+    voiceName: "es-PE-CamilaNeural-Female",
+    clipDuration: 5,
+    videoCount: 1,
+    subtitleEnabled: true,
+    subtitlePosition: "bottom" as const,
+    script: "",
+    searchTerms: "",
+    materialUrls: "",
+    targetConnectionIds: [] as string[]
   });
   const selectedAsset = useMemo(
     () => designable.find((asset) => asset.id === selectedAssetId) ?? designable[0] ?? null,
@@ -160,15 +179,108 @@ export default function DesignsPage() {
     }
   }
 
+  async function createVideo(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!videoForm.subject.trim()) return;
+    setIsCreatingVideo(true);
+    const script = videoForm.script.trim() || generateLocalScript(videoForm.subject);
+    const searchTerms = videoForm.searchTerms
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const materialUrls = videoForm.materialUrls
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    try {
+      const response = await fetch("/api/video/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: videoForm.subject,
+          script,
+          searchTerms,
+          aspect: videoForm.aspect,
+          source: videoForm.source,
+          voiceName: videoForm.voiceName,
+          clipDuration: videoForm.clipDuration,
+          videoCount: videoForm.videoCount,
+          subtitleEnabled: videoForm.subtitleEnabled,
+          subtitlePosition: videoForm.subtitlePosition,
+          materialUrls
+        })
+      });
+      const result = (await response.json()) as {
+        settings?: {
+          subject: string;
+          script: string;
+          searchTerms: string[];
+          aspect: VideoAspect;
+          source: VideoSource;
+          voiceName: string;
+          voiceRate: number;
+          voiceVolume: number;
+          bgmType: "random" | "none" | "custom";
+          bgmVolume: number;
+          subtitleEnabled: boolean;
+          subtitlePosition: "top" | "center" | "bottom" | "custom";
+          fontSize: number;
+          clipDuration: number;
+          videoCount: number;
+          materialUrls: string[];
+        };
+        task?: VideoGenerationTask;
+      };
+      const settings = result.settings ?? {
+        subject: videoForm.subject,
+        script,
+        searchTerms: searchTerms.length > 0 ? searchTerms : generateLocalTerms(videoForm.subject, script),
+        aspect: videoForm.aspect,
+        source: videoForm.source,
+        voiceName: videoForm.voiceName,
+        voiceRate: 1,
+        voiceVolume: 1,
+        bgmType: "random" as const,
+        bgmVolume: 0.2,
+        subtitleEnabled: videoForm.subtitleEnabled,
+        subtitlePosition: videoForm.subtitlePosition,
+        fontSize: 60,
+        clipDuration: videoForm.clipDuration,
+        videoCount: videoForm.videoCount,
+        materialUrls
+      };
+      const assetId = createVideoAsset({
+        title: `Short IA: ${videoForm.subject}`,
+        productId: videoForm.productId || null,
+        channel: videoForm.channel,
+        prompt: `MoneyPrinterTurbo pipeline para ${videoForm.subject}`,
+        copy: `Video ${settings.aspect} con CTA a WhatsApp. Terminos: ${settings.searchTerms.join(", ")}`,
+        videoConfig: settings,
+        videoTask: result.task,
+        targetConnectionIds: videoForm.targetConnectionIds,
+        referenceImageUrls: state.brand.referenceAssets.slice(0, 5)
+      });
+      setSelectedAssetId(assetId);
+      setShowVideoModal(false);
+    } finally {
+      setIsCreatingVideo(false);
+    }
+  }
+
   return (
     <>
       <PageHeader
-        title="Design Engine"
-        description="Crea piezas visuales desde prompt, plantilla, texto editable e imagenes de referencia. El render usa tu Brand Kit y paginas destino."
+        title="Content Studio"
+        description="Crea posts, disenos y shorts IA desde prompt, texto editable, referencias, paginas destino y pipeline tipo MoneyPrinterTurbo."
       >
         <button className="btn-secondary" type="button" onClick={() => setShowReferenceModal(true)}>
           <Upload className="h-4 w-4" />
           Referencia
+        </button>
+        <button className="btn-secondary" type="button" onClick={() => setShowVideoModal(true)}>
+          <WandSparkles className="h-4 w-4" />
+          Video IA
         </button>
         <button className="btn-primary" type="button" onClick={() => setShowAddModal(true)}>
           <Plus className="h-4 w-4" />
@@ -232,7 +344,28 @@ export default function DesignsPage() {
             />
             <div className="grid gap-5 p-4 lg:grid-cols-[1fr_0.72fr]">
               <div className="flex min-h-[520px] items-center justify-center rounded-[2rem] border border-ink/10 bg-paper p-4">
-                {selectedSvg ? (
+                {selectedAsset?.assetType === "video" ? (
+                  <div className="w-full max-w-xl rounded-[2rem] border border-ink/10 bg-[var(--color-surface)] p-5 shadow-xl">
+                    <div className="aspect-[9/16] rounded-3xl bg-gradient-to-b from-ink to-violet p-5 text-white">
+                      <div className="flex h-full flex-col justify-between">
+                        <div>
+                          <p className="text-xs font-semibold uppercase opacity-70">Short IA</p>
+                          <h3 className="mt-3 text-3xl font-semibold leading-tight">{selectedAsset.title}</h3>
+                          <p className="mt-4 text-sm leading-6 opacity-75">{selectedAsset.videoConfig?.script.split("\n")[0]}</p>
+                        </div>
+                        <div className="rounded-2xl bg-white/12 p-3 backdrop-blur">
+                          <div className="flex items-center justify-between text-xs">
+                            <span>{selectedAsset.videoConfig?.aspect}</span>
+                            <span>{selectedAsset.videoTask?.status ?? "draft"} · {selectedAsset.videoTask?.progress ?? 0}%</span>
+                          </div>
+                          <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/20">
+                            <div className="h-full rounded-full bg-white" style={{ width: `${selectedAsset.videoTask?.progress ?? 12}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : selectedSvg ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={svgDataUri(selectedSvg)} alt={selectedAsset?.title ?? "Diseno"} className="max-h-[680px] w-full rounded-3xl object-contain shadow-xl" />
                 ) : (
@@ -254,6 +387,21 @@ export default function DesignsPage() {
                   <p className="text-xs font-medium uppercase tracking-normal text-ink/45">Prompt</p>
                   <p className="mt-2 text-sm leading-6 text-ink/65">{selectedAsset?.prompt || "Sin prompt configurado."}</p>
                 </div>
+                {selectedAsset?.assetType === "video" ? (
+                  <div className="rounded-3xl border border-ink/10 bg-paper p-4">
+                    <p className="text-xs font-medium uppercase tracking-normal text-ink/45">MoneyPrinterTurbo</p>
+                    <p className="mt-2 text-sm leading-6 text-ink/65">
+                      {selectedAsset.videoTask?.provider ?? "local_blueprint"} · {selectedAsset.videoTask?.taskId ?? "sin tarea"}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {videoPipelineStages.slice(0, 6).map((stage) => (
+                        <span key={stage} className="rounded-full bg-[var(--color-surface)] px-2 py-1 text-xs font-semibold text-ink/60">
+                          {stage}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="grid grid-cols-2 gap-2">
                   <button className="btn-secondary" disabled={!selectedAsset} onClick={() => selectedAsset && renderAsset(selectedAsset.id, "post_square_clean_v1")}>
                     <RefreshCw className="h-4 w-4" />
@@ -418,6 +566,151 @@ export default function DesignsPage() {
             <button className="btn-primary" type="submit">
               <Save className="h-4 w-4" />
               Crear diseno
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={showVideoModal}
+        onClose={() => setShowVideoModal(false)}
+        title="Generar video corto IA"
+        description="Crea una tarea compatible con MoneyPrinterTurbo: guion, terminos visuales, voz, subtitulos, materiales, musica y render HD."
+        size="xl"
+      >
+        <form className="grid gap-4" onSubmit={createVideo}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Tema o keyword">
+              <input className="input" value={videoForm.subject} onChange={(event) => setVideoForm({ ...videoForm, subject: event.target.value })} />
+            </Field>
+            <Field label="Producto">
+              <select className="select" value={videoForm.productId} onChange={(event) => setVideoForm({ ...videoForm, productId: event.target.value })}>
+                {state.products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Canal">
+              <select className="select" value={videoForm.channel} onChange={(event) => setVideoForm({ ...videoForm, channel: event.target.value as Channel })}>
+                <option value="instagram_reel">Instagram reel</option>
+                <option value="instagram_story">Instagram story</option>
+                <option value="tiktok">TikTok</option>
+                <option value="facebook">Facebook</option>
+                <option value="manual">Manual</option>
+              </select>
+            </Field>
+            <Field label="Formato">
+              <select className="select" value={videoForm.aspect} onChange={(event) => setVideoForm({ ...videoForm, aspect: event.target.value as VideoAspect })}>
+                <option value="9:16">Vertical 9:16</option>
+                <option value="16:9">Horizontal 16:9</option>
+                <option value="1:1">Cuadrado 1:1</option>
+              </select>
+            </Field>
+            <Field label="Fuente de materiales">
+              <select className="select" value={videoForm.source} onChange={(event) => setVideoForm({ ...videoForm, source: event.target.value as VideoSource })}>
+                <option value="pexels">Pexels</option>
+                <option value="pixabay">Pixabay</option>
+                <option value="local">Material local</option>
+                <option value="manual">Solo blueprint</option>
+              </select>
+            </Field>
+            <Field label="Voz">
+              <input className="input" value={videoForm.voiceName} onChange={(event) => setVideoForm({ ...videoForm, voiceName: event.target.value })} />
+            </Field>
+            <Field label="Duracion por clip">
+              <input
+                className="input"
+                type="number"
+                min="2"
+                max="12"
+                value={videoForm.clipDuration}
+                onChange={(event) => setVideoForm({ ...videoForm, clipDuration: Number(event.target.value) })}
+              />
+            </Field>
+            <Field label="Cantidad de videos">
+              <input
+                className="input"
+                type="number"
+                min="1"
+                max="5"
+                value={videoForm.videoCount}
+                onChange={(event) => setVideoForm({ ...videoForm, videoCount: Number(event.target.value) })}
+              />
+            </Field>
+          </div>
+
+          <Field label="Paginas destino">
+            <div className="flex flex-wrap gap-2 rounded-2xl border border-ink/10 bg-paper p-2">
+              {pageTargets.map((connection) => {
+                const active = videoForm.targetConnectionIds.includes(connection.id);
+                return (
+                  <button
+                    key={connection.id}
+                    type="button"
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${active ? "bg-violet text-white" : "bg-[var(--color-surface)] text-ink/65"}`}
+                    onClick={() => {
+                      setVideoForm({
+                        ...videoForm,
+                        targetConnectionIds: active
+                          ? videoForm.targetConnectionIds.filter((item) => item !== connection.id)
+                          : [...videoForm.targetConnectionIds, connection.id]
+                      });
+                    }}
+                  >
+                    {connection.label}
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Field label="Guion editable">
+              <textarea
+                className="textarea min-h-44"
+                value={videoForm.script}
+                placeholder={generateLocalScript(videoForm.subject)}
+                onChange={(event) => setVideoForm({ ...videoForm, script: event.target.value })}
+              />
+            </Field>
+            <div className="grid gap-4">
+              <Field label="Terminos visuales (uno por linea)">
+                <textarea
+                  className="textarea"
+                  value={videoForm.searchTerms}
+                  placeholder={generateLocalTerms(videoForm.subject, videoForm.script || generateLocalScript(videoForm.subject)).join("\n")}
+                  onChange={(event) => setVideoForm({ ...videoForm, searchTerms: event.target.value })}
+                />
+              </Field>
+              <Field label="Materiales locales / URLs (opcional)">
+                <textarea
+                  className="textarea"
+                  value={videoForm.materialUrls}
+                  placeholder="C:/videos/clip1.mp4&#10;https://..."
+                  onChange={(event) => setVideoForm({ ...videoForm, materialUrls: event.target.value })}
+                />
+              </Field>
+            </div>
+          </div>
+
+          <div className="grid gap-3 rounded-3xl border border-ink/10 bg-paper p-4 md:grid-cols-4">
+            {videoPipelineStages.map((stage, index) => (
+              <div key={stage} className="rounded-2xl bg-[var(--color-surface)] p-3">
+                <p className="text-xs text-ink/45">Paso {index + 1}</p>
+                <p className="mt-1 text-sm font-semibold text-ink">{stage}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <button className="btn-secondary" type="button" onClick={() => setShowVideoModal(false)}>
+              Cancelar
+            </button>
+            <button className="btn-primary" type="submit" disabled={isCreatingVideo}>
+              <WandSparkles className="h-4 w-4" />
+              {isCreatingVideo ? "Creando..." : "Crear tarea de video"}
             </button>
           </div>
         </form>
