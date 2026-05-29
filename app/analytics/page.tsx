@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
   CheckCircle2,
@@ -17,7 +17,7 @@ import { Modal } from "@/components/modal";
 import { Field, PageHeader, Panel, PanelHeader, StatCard, StatusBadge } from "@/components/ui";
 import { providerPlaybook } from "@/lib/social-intelligence";
 import { useWorkspace } from "@/lib/store";
-import type { CompetitorProfile, SocialDataProvider, SocialPlatform } from "@/lib/types";
+import type { CompetitorProfile, SocialDataProvider, SocialMetricSummary, SocialPlatform, SocialPostMetric } from "@/lib/types";
 
 const platformOptions: SocialPlatform[] = ["facebook", "instagram", "tiktok", "whatsapp"];
 const providerOptions: SocialDataProvider[] = [
@@ -39,11 +39,16 @@ export default function AnalyticsPage() {
     addCompetitorProfile,
     updateCompetitorProfile,
     addSocialPostMetric,
+    replaceSocialPostMetrics,
     recalculateSocialMetrics,
     runResearchAnalysis
   } = useWorkspace();
   const [showCreatorModal, setShowCreatorModal] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
+  const [remoteRows, setRemoteRows] = useState<SocialPostMetric[] | null>(null);
+  const [remoteSummary, setRemoteSummary] = useState<SocialMetricSummary | null>(null);
+  const [dataError, setDataError] = useState("");
+  const [loadingData, setLoadingData] = useState(true);
   const [creatorForm, setCreatorForm] = useState({
     platform: "instagram" as SocialPlatform,
     name: "Nuevo creador",
@@ -79,11 +84,43 @@ export default function AnalyticsPage() {
   });
 
   const maxObjectiveScore = Math.max(...analytics.rankedObjectives.map((item) => item.score), 1);
-  const summary = state.socialMetricSummary;
+  const displayRows = remoteRows ?? state.socialPostMetrics;
+  const visibleProfiles = state.competitorProfiles.filter((profile) => !profile.id.startsWith("creator_demo_"));
+  const summary = remoteSummary ?? state.socialMetricSummary;
   const topPosts = useMemo(
-    () => [...state.socialPostMetrics].sort((a, b) => b.scoreViralidad - a.scoreViralidad).slice(0, 6),
-    [state.socialPostMetrics]
+    () => [...displayRows].sort((a, b) => b.scoreViralidad - a.scoreViralidad).slice(0, 6),
+    [displayRows]
   );
+  const dataMode = remoteRows ? "Supabase" : "Local";
+
+  const loadSocialMetrics = useCallback(async () => {
+    setLoadingData(true);
+    setDataError("");
+    try {
+      const response = await fetch("/api/social/import", { cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        setRemoteRows(null);
+        setRemoteSummary(null);
+        setDataError(payload.error ?? "No se pudieron leer metricas desde Supabase.");
+        return;
+      }
+      const rows = payload.rows ?? [];
+      setRemoteRows(rows);
+      setRemoteSummary(payload.summary ?? null);
+      replaceSocialPostMetrics(rows);
+    } catch (error) {
+      setRemoteRows(null);
+      setRemoteSummary(null);
+      setDataError(error instanceof Error ? error.message : "No se pudieron leer metricas desde Supabase.");
+    } finally {
+      setLoadingData(false);
+    }
+  }, [replaceSocialPostMetrics]);
+
+  useEffect(() => {
+    loadSocialMetrics();
+  }, [loadSocialMetrics]);
 
   function submitCreator(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -110,9 +147,9 @@ export default function AnalyticsPage() {
     setShowCreatorModal(false);
   }
 
-  function submitPost(event: FormEvent<HTMLFormElement>) {
+  async function submitPost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    addSocialPostMetric({
+    const input = {
       competitorProfileId: postForm.competitorProfileId || null,
       redSocial: postForm.redSocial,
       cuenta: postForm.cuenta,
@@ -130,7 +167,21 @@ export default function AnalyticsPage() {
       tema: postForm.tema,
       provider: postForm.provider,
       raw: { source: "manual_ui" }
-    });
+    };
+    try {
+      const response = await fetch("/api/social/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows: [input] })
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok || payload.mode !== "supabase") {
+        addSocialPostMetric(input);
+      }
+      await loadSocialMetrics();
+    } catch {
+      addSocialPostMetric(input);
+    }
     setShowPostModal(false);
   }
 
@@ -147,6 +198,10 @@ export default function AnalyticsPage() {
         <button className="btn-secondary" type="button" onClick={recalculateSocialMetrics}>
           <RefreshCw className="h-4 w-4" />
           Recalcular
+        </button>
+        <button className="btn-secondary" type="button" onClick={loadSocialMetrics}>
+          <RefreshCw className="h-4 w-4" />
+          Leer SQL
         </button>
         <button className="btn-secondary" type="button" onClick={runResearchAnalysis}>
           <Radar className="h-4 w-4" />
@@ -170,6 +225,12 @@ export default function AnalyticsPage() {
         <StatCard label="Likes promedio" value={summary.likesPromedio} icon={Trophy} tone="saffron" />
         <StatCard label="Formato ganador" value={summary.formatoGanador} icon={BarChart3} tone="moss" />
         <StatCard label="Hook dominante" value={summary.hookDominante} icon={Radar} tone="peacock" />
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-ink/10 bg-[var(--color-surface)] px-4 py-3 text-sm text-ink/65">
+        Fuente actual: <span className="font-semibold text-ink">{dataMode}</span>
+        {loadingData ? " · cargando metricas reales..." : ` · ${displayRows.length} posts analizados`}
+        {dataError ? <span className="text-coral"> · {dataError}</span> : null}
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -281,7 +342,7 @@ export default function AnalyticsPage() {
             }
           />
           <div className="divide-y divide-ink/10">
-            {state.competitorProfiles.map((profile) => (
+            {visibleProfiles.map((profile) => (
               <article key={profile.id} className="grid gap-3 p-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div>
@@ -354,7 +415,7 @@ export default function AnalyticsPage() {
                 onChange={(event) => setPostForm({ ...postForm, competitorProfileId: event.target.value })}
               >
                 <option value="">Sin perfil</option>
-                {state.competitorProfiles.map((profile) => (
+                {visibleProfiles.map((profile) => (
                   <option key={profile.id} value={profile.id}>
                     {profile.name}
                   </option>

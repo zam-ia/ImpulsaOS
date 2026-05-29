@@ -79,6 +79,7 @@ interface WorkspaceContextValue {
   updateCompetitorProfile: (profileId: string, profile: Partial<CompetitorProfile>) => void;
   addSocialPostMetric: (metric: SocialPostMetricInput) => void;
   importSocialPostMetrics: (metrics: SocialPostMetricInput[]) => void;
+  replaceSocialPostMetrics: (metrics: WorkspaceState["socialPostMetrics"]) => void;
   recalculateSocialMetrics: () => void;
   runResearchAnalysis: () => void;
   updateCaptureCampaign: (campaignId: string, campaign: Partial<OrganicCaptureCampaign>) => void;
@@ -589,6 +590,14 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const replaceSocialPostMetrics = useCallback<WorkspaceContextValue["replaceSocialPostMetrics"]>((metrics) => {
+    setState((current) => ({
+      ...current,
+      socialPostMetrics: metrics,
+      socialMetricSummary: summarizeSocialMetrics(metrics)
+    }));
+  }, []);
+
   const recalculateSocialMetrics = useCallback(() => {
     setState((current) => ({
       ...current,
@@ -599,7 +608,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const runResearchAnalysis = useCallback(() => {
     setState((current) => {
       const socialMetricSummary = summarizeSocialMetrics(current.socialPostMetrics);
-      const activeCreators = current.competitorProfiles.filter((profile) => profile.isActive);
+      const activeCreators = current.competitorProfiles.filter(
+        (profile) => profile.isActive && !profile.id.startsWith("creator_demo_")
+      );
       const topCreator = [...activeCreators].sort(
         (a, b) =>
           b.metricsSnapshot.avgLikes +
@@ -917,6 +928,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       updateCompetitorProfile,
       addSocialPostMetric,
       importSocialPostMetrics,
+      replaceSocialPostMetrics,
       recalculateSocialMetrics,
       runResearchAnalysis,
       updateCaptureCampaign,
@@ -952,6 +964,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       updateCompetitorProfile,
       addSocialPostMetric,
       importSocialPostMetrics,
+      replaceSocialPostMetrics,
       recalculateSocialMetrics,
       runResearchAnalysis,
       updateCaptureCampaign,

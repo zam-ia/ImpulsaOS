@@ -93,6 +93,34 @@ export const providerPlaybook: Array<{
   }
 ];
 
+type SocialPostMetricRow = {
+  id: string;
+  business_id: string;
+  competitor_profile_id: string | null;
+  red_social: SocialPlatform;
+  cuenta: string;
+  url_post: string;
+  fecha_publicacion: string;
+  tipo_contenido: string;
+  duracion_video: number | null;
+  likes: number | null;
+  comentarios: number | null;
+  shares: number | null;
+  views: number | null;
+  engagement_rate: number | string | null;
+  hook_textual: string | null;
+  hook_verbal: string | null;
+  hook_visual: string | null;
+  categoria_hook: HookCategory | null;
+  formato_detectado: DetectedFormat | null;
+  tema: string | null;
+  cta: string | null;
+  score_viralidad: number | null;
+  provider: SocialDataProvider | null;
+  raw: Record<string, unknown> | null;
+  created_at: string;
+};
+
 function cleanText(value: string) {
   return value.trim().replace(/\s+/g, " ");
 }
@@ -194,6 +222,64 @@ export function normalizeSocialPostMetric(businessId: string, input: SocialPostM
   return {
     ...metric,
     scoreViralidad: input.scoreViralidad ?? calculateViralScore(metric)
+  };
+}
+
+export function socialMetricToInsertRow(metric: SocialPostMetric) {
+  return {
+    business_id: metric.businessId,
+    competitor_profile_id: metric.competitorProfileId,
+    red_social: metric.redSocial,
+    cuenta: metric.cuenta,
+    url_post: metric.urlPost,
+    fecha_publicacion: metric.fechaPublicacion,
+    tipo_contenido: metric.tipoContenido,
+    duracion_video: metric.duracionVideo,
+    likes: metric.likes,
+    comentarios: metric.comentarios,
+    shares: metric.shares,
+    views: metric.views,
+    engagement_rate: metric.engagementRate,
+    hook_textual: metric.hookTextual,
+    hook_verbal: metric.hookVerbal,
+    hook_visual: metric.hookVisual,
+    categoria_hook: metric.categoriaHook,
+    formato_detectado: metric.formatoDetectado,
+    tema: metric.tema,
+    cta: metric.cta,
+    score_viralidad: metric.scoreViralidad,
+    provider: metric.provider,
+    raw: metric.raw
+  };
+}
+
+export function socialMetricFromRow(row: SocialPostMetricRow): SocialPostMetric {
+  return {
+    id: row.id,
+    businessId: row.business_id,
+    competitorProfileId: row.competitor_profile_id,
+    redSocial: row.red_social,
+    cuenta: row.cuenta,
+    urlPost: row.url_post,
+    fechaPublicacion: row.fecha_publicacion,
+    tipoContenido: row.tipo_contenido,
+    duracionVideo: row.duracion_video ?? 0,
+    likes: row.likes ?? 0,
+    comentarios: row.comentarios ?? 0,
+    shares: row.shares ?? 0,
+    views: row.views ?? 0,
+    engagementRate: Number(row.engagement_rate ?? 0),
+    hookTextual: row.hook_textual ?? "",
+    hookVerbal: row.hook_verbal ?? "",
+    hookVisual: row.hook_visual ?? "",
+    categoriaHook: row.categoria_hook ?? "desconocido",
+    formatoDetectado: row.formato_detectado ?? "desconocido",
+    tema: row.tema ?? "",
+    cta: row.cta ?? "",
+    scoreViralidad: row.score_viralidad ?? 0,
+    provider: row.provider ?? "manual_csv",
+    raw: row.raw ?? {},
+    createdAt: row.created_at
   };
 }
 

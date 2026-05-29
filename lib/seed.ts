@@ -1,5 +1,5 @@
 import type { WorkspaceState } from "@/lib/types";
-import { normalizeSocialPostMetric, summarizeSocialMetrics } from "@/lib/social-intelligence";
+import { summarizeSocialMetrics } from "@/lib/social-intelligence";
 import { addDaysIso, todayIso } from "@/lib/utils";
 
 const businessId = "biz_demo";
@@ -9,65 +9,7 @@ const pillarValue = "pillar_valor";
 const pillarAuthority = "pillar_autoridad";
 const pillarSales = "pillar_venta";
 
-const initialSocialPostMetrics = [
-  normalizeSocialPostMetric(businessId, {
-    competitorProfileId: "creator_demo_1",
-    redSocial: "instagram",
-    cuenta: "@referencia_autoridad",
-    urlPost: "https://instagram.com/p/demo-reel-auditoria",
-    fechaPublicacion: addDaysIso(-8, 11),
-    tipoContenido: "reel auditoria",
-    duracionVideo: 42,
-    likes: 860,
-    comentarios: 91,
-    shares: 128,
-    views: 12800,
-    hookTextual: "Nadie te dice por que tu contenido no vende",
-    hookVerbal: "Publicar mas no arregla una oferta confusa",
-    hookVisual: "Texto grande sobre captura de pantalla de perfil auditado",
-    tema: "Auditoria de contenido",
-    provider: "instaloader",
-    raw: { source: "demo_seed", repositoryPattern: "instaloader Post caption/likes/comments/video_duration" }
-  }),
-  normalizeSocialPostMetric(businessId, {
-    competitorProfileId: "creator_demo_2",
-    redSocial: "facebook",
-    cuenta: "@competidor_local",
-    urlPost: "https://facebook.com/demo/post-pregunta",
-    fechaPublicacion: addDaysIso(-5, 9),
-    tipoContenido: "post pregunta",
-    duracionVideo: 0,
-    likes: 210,
-    comentarios: 76,
-    shares: 18,
-    views: 0,
-    hookTextual: "Que harias si hoy llegan 10 consultas y ninguna compra?",
-    hookVerbal: "",
-    hookVisual: "Pregunta en fondo claro con CTA a comentar",
-    tema: "Objeciones de venta",
-    provider: "facebook_scraper",
-    raw: { source: "demo_seed", repositoryPattern: "facebook-scraper post_url/time/post_text/reactions" }
-  }),
-  normalizeSocialPostMetric(businessId, {
-    competitorProfileId: "creator_demo_1",
-    redSocial: "tiktok",
-    cuenta: "@referencia_autoridad",
-    urlPost: "https://tiktok.com/@referencia/video/demo",
-    fechaPublicacion: addDaysIso(-2, 20),
-    tipoContenido: "short educativo",
-    duracionVideo: 29,
-    likes: 1340,
-    comentarios: 112,
-    shares: 202,
-    views: 22600,
-    hookTextual: "3 pasos para convertir comentarios en leads",
-    hookVerbal: "Si tienes comentarios pero no ventas, prueba este flujo",
-    hookVisual: "Pantalla dividida con comentarios y WhatsApp",
-    tema: "Captacion organica",
-    provider: "tiktok_api",
-    raw: { source: "demo_seed", repositoryPattern: "TikTok-Api Video stats/desc/createTime" }
-  })
-];
+const initialSocialPostMetrics: WorkspaceState["socialPostMetrics"] = [];
 
 export const initialWorkspace: WorkspaceState = {
   settings: {
@@ -347,64 +289,10 @@ export const initialWorkspace: WorkspaceState = {
       notes: "El MVP usa links trackeados wa.me y respuestas sugeridas para proteger el número."
     }
   ],
-  competitorProfiles: [
-    {
-      id: "creator_demo_1",
-      businessId,
-      platform: "instagram",
-      name: "Creador referencia autoridad",
-      handle: "@referencia_autoridad",
-      profileUrl: "",
-      niche: "Marketing organico y ventas",
-      notes: "Perfil grande para detectar formatos de autoridad, hooks y pruebas sociales.",
-      trackedFormats: ["reel auditoria", "carrusel educativo", "story CTA"],
-      isActive: true,
-      metricsSnapshot: {
-        postsAnalyzed: 18,
-        avgLikes: 420,
-        avgComments: 34,
-        topFormat: "reel auditoria",
-        topHook: "nos mintieron con este consejo"
-      },
-      createdAt: todayIso(),
-      updatedAt: todayIso()
-    },
-    {
-      id: "creator_demo_2",
-      businessId,
-      platform: "facebook",
-      name: "Fan page competidora local",
-      handle: "@competidor_local",
-      profileUrl: "",
-      niche: "Servicios locales",
-      notes: "Referencia cercana para entender lenguaje, objeciones y CTA que generan comentarios.",
-      trackedFormats: ["post pregunta", "caso antes/despues", "oferta limitada"],
-      isActive: true,
-      metricsSnapshot: {
-        postsAnalyzed: 12,
-        avgLikes: 95,
-        avgComments: 19,
-        topFormat: "post pregunta",
-        topHook: "que harias si"
-      },
-      createdAt: todayIso(),
-      updatedAt: todayIso()
-    }
-  ],
+  competitorProfiles: [],
   socialPostMetrics: initialSocialPostMetrics,
   socialMetricSummary: summarizeSocialMetrics(initialSocialPostMetrics),
-  researchInsights: [
-    {
-      id: "insight_erex_seed",
-      businessId,
-      source: "erex",
-      title: "Base EREX cargada",
-      summary: "Se detectaron plantillas de storytelling, guionizacion, hooks, escala de viralidad, CTAs y ad copy.",
-      recommendation: "Usa cada pieza con checklist: gancho, problema, oportunidad, pasos, prueba y CTA con palabra clave.",
-      confidence: 88,
-      createdAt: todayIso()
-    }
-  ],
+  researchInsights: [],
   captureCampaigns: [
     {
       id: "capture_weekly_demo",
@@ -414,7 +302,7 @@ export const initialWorkspace: WorkspaceState = {
       productId: productB,
       channels: ["instagram_post", "instagram_reel", "facebook", "tiktok", "whatsapp"],
       targetConnectionIds: ["conn_facebook", "conn_facebook_2", "conn_facebook_3", "conn_instagram", "conn_whatsapp"],
-      competitorProfileIds: ["creator_demo_1", "creator_demo_2"],
+      competitorProfileIds: [],
       researchMode: "manual_links",
       cadence: "weekly",
       botMode: "assist",
