@@ -39,6 +39,37 @@ export type ThemePreference = "system" | "light" | "dark";
 export type VideoAspect = "9:16" | "16:9" | "1:1";
 export type VideoSource = "pexels" | "pixabay" | "local" | "manual";
 export type VideoTaskStatus = "draft" | "queued" | "processing" | "completed" | "failed";
+export type HookCategory =
+  | "curiosidad"
+  | "dolor"
+  | "autoridad"
+  | "prueba_social"
+  | "controversia"
+  | "historia"
+  | "educativo"
+  | "oferta"
+  | "pregunta"
+  | "desconocido";
+export type DetectedFormat =
+  | "reel"
+  | "short"
+  | "carrusel"
+  | "imagen"
+  | "story"
+  | "live"
+  | "texto"
+  | "ad"
+  | "desconocido";
+export type SocialDataProvider =
+  | "meta_business_sdk"
+  | "tiktok_business_sdk"
+  | "instaloader"
+  | "tiktok_api"
+  | "facebook_scraper"
+  | "crawlee"
+  | "manual_csv"
+  | "ocr"
+  | "whisper";
 export type ModuleKey =
   | "dashboard"
   | "business"
@@ -291,6 +322,44 @@ export interface CompetitorProfile {
   updatedAt: string;
 }
 
+export interface SocialPostMetric {
+  id: string;
+  businessId: string;
+  competitorProfileId: string | null;
+  redSocial: SocialPlatform;
+  cuenta: string;
+  urlPost: string;
+  fechaPublicacion: string;
+  tipoContenido: string;
+  duracionVideo: number;
+  likes: number;
+  comentarios: number;
+  shares: number;
+  views: number;
+  engagementRate: number;
+  hookTextual: string;
+  hookVerbal: string;
+  hookVisual: string;
+  categoriaHook: HookCategory;
+  formatoDetectado: DetectedFormat;
+  tema: string;
+  cta: string;
+  scoreViralidad: number;
+  provider: SocialDataProvider;
+  raw: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface SocialMetricSummary {
+  comentariosPromedio: number;
+  likesPromedio: number;
+  formatoGanador: string;
+  hookDominante: HookCategory;
+  formatosVigilar: string[];
+  topPostIds: string[];
+  updatedAt: string;
+}
+
 export interface ResearchInsight {
   id: string;
   businessId: string;
@@ -414,6 +483,8 @@ export interface WorkspaceState {
   leadEvents: LeadEvent[];
   connections: SocialConnection[];
   competitorProfiles: CompetitorProfile[];
+  socialPostMetrics: SocialPostMetric[];
+  socialMetricSummary: SocialMetricSummary;
   researchInsights: ResearchInsight[];
   captureCampaigns: OrganicCaptureCampaign[];
   flows: AutomationFlow[];

@@ -1,5 +1,6 @@
 import type { WorkspaceState } from "@/lib/types";
-import { addDaysIso, makeId, todayIso } from "@/lib/utils";
+import { normalizeSocialPostMetric, summarizeSocialMetrics } from "@/lib/social-intelligence";
+import { addDaysIso, todayIso } from "@/lib/utils";
 
 const businessId = "biz_demo";
 const productA = "prod_consultoria";
@@ -7,6 +8,66 @@ const productB = "prod_pack";
 const pillarValue = "pillar_valor";
 const pillarAuthority = "pillar_autoridad";
 const pillarSales = "pillar_venta";
+
+const initialSocialPostMetrics = [
+  normalizeSocialPostMetric(businessId, {
+    competitorProfileId: "creator_demo_1",
+    redSocial: "instagram",
+    cuenta: "@referencia_autoridad",
+    urlPost: "https://instagram.com/p/demo-reel-auditoria",
+    fechaPublicacion: addDaysIso(-8, 11),
+    tipoContenido: "reel auditoria",
+    duracionVideo: 42,
+    likes: 860,
+    comentarios: 91,
+    shares: 128,
+    views: 12800,
+    hookTextual: "Nadie te dice por que tu contenido no vende",
+    hookVerbal: "Publicar mas no arregla una oferta confusa",
+    hookVisual: "Texto grande sobre captura de pantalla de perfil auditado",
+    tema: "Auditoria de contenido",
+    provider: "instaloader",
+    raw: { source: "demo_seed", repositoryPattern: "instaloader Post caption/likes/comments/video_duration" }
+  }),
+  normalizeSocialPostMetric(businessId, {
+    competitorProfileId: "creator_demo_2",
+    redSocial: "facebook",
+    cuenta: "@competidor_local",
+    urlPost: "https://facebook.com/demo/post-pregunta",
+    fechaPublicacion: addDaysIso(-5, 9),
+    tipoContenido: "post pregunta",
+    duracionVideo: 0,
+    likes: 210,
+    comentarios: 76,
+    shares: 18,
+    views: 0,
+    hookTextual: "Que harias si hoy llegan 10 consultas y ninguna compra?",
+    hookVerbal: "",
+    hookVisual: "Pregunta en fondo claro con CTA a comentar",
+    tema: "Objeciones de venta",
+    provider: "facebook_scraper",
+    raw: { source: "demo_seed", repositoryPattern: "facebook-scraper post_url/time/post_text/reactions" }
+  }),
+  normalizeSocialPostMetric(businessId, {
+    competitorProfileId: "creator_demo_1",
+    redSocial: "tiktok",
+    cuenta: "@referencia_autoridad",
+    urlPost: "https://tiktok.com/@referencia/video/demo",
+    fechaPublicacion: addDaysIso(-2, 20),
+    tipoContenido: "short educativo",
+    duracionVideo: 29,
+    likes: 1340,
+    comentarios: 112,
+    shares: 202,
+    views: 22600,
+    hookTextual: "3 pasos para convertir comentarios en leads",
+    hookVerbal: "Si tienes comentarios pero no ventas, prueba este flujo",
+    hookVisual: "Pantalla dividida con comentarios y WhatsApp",
+    tema: "Captacion organica",
+    provider: "tiktok_api",
+    raw: { source: "demo_seed", repositoryPattern: "TikTok-Api Video stats/desc/createTime" }
+  })
+];
 
 export const initialWorkspace: WorkspaceState = {
   settings: {
@@ -330,6 +391,8 @@ export const initialWorkspace: WorkspaceState = {
       updatedAt: todayIso()
     }
   ],
+  socialPostMetrics: initialSocialPostMetrics,
+  socialMetricSummary: summarizeSocialMetrics(initialSocialPostMetrics),
   researchInsights: [
     {
       id: "insight_erex_seed",

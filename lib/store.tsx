@@ -5,6 +5,11 @@ import { generateSingleCopy, generateWeeklyPlan } from "@/lib/ai";
 import { computeAnalytics } from "@/lib/analytics";
 import { renderDesignSvg } from "@/lib/design";
 import { initialWorkspace } from "@/lib/seed";
+import {
+  normalizeSocialPostMetric,
+  summarizeSocialMetrics,
+  type SocialPostMetricInput
+} from "@/lib/social-intelligence";
 import type {
   AutomationRun,
   BrandProfile,
@@ -72,6 +77,9 @@ interface WorkspaceContextValue {
   updateConnection: (connectionId: string, connection: Partial<SocialConnection>) => void;
   addCompetitorProfile: (profile: Omit<CompetitorProfile, "id" | "businessId" | "createdAt" | "updatedAt">) => void;
   updateCompetitorProfile: (profileId: string, profile: Partial<CompetitorProfile>) => void;
+  addSocialPostMetric: (metric: SocialPostMetricInput) => void;
+  importSocialPostMetrics: (metrics: SocialPostMetricInput[]) => void;
+  recalculateSocialMetrics: () => void;
   runResearchAnalysis: () => void;
   updateCaptureCampaign: (campaignId: string, campaign: Partial<OrganicCaptureCampaign>) => void;
   addBotScenario: (campaignId: string) => void;
@@ -110,6 +118,8 @@ function readStoredState(): WorkspaceState | null {
       },
       connections: parsed.connections ?? initialWorkspace.connections,
       competitorProfiles: parsed.competitorProfiles ?? initialWorkspace.competitorProfiles,
+      socialPostMetrics: parsed.socialPostMetrics ?? initialWorkspace.socialPostMetrics,
+      socialMetricSummary: parsed.socialMetricSummary ?? initialWorkspace.socialMetricSummary,
       researchInsights: parsed.researchInsights ?? initialWorkspace.researchInsights,
       captureCampaigns: parsed.captureCampaigns ?? initialWorkspace.captureCampaigns
     } as WorkspaceState;
@@ -555,8 +565,40 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const addSocialPostMetric = useCallback<WorkspaceContextValue["addSocialPostMetric"]>((metric) => {
+    setState((current) => {
+      const normalized = normalizeSocialPostMetric(current.business.id, metric);
+      const socialPostMetrics = [normalized, ...current.socialPostMetrics];
+      return {
+        ...current,
+        socialPostMetrics,
+        socialMetricSummary: summarizeSocialMetrics(socialPostMetrics)
+      };
+    });
+  }, []);
+
+  const importSocialPostMetrics = useCallback<WorkspaceContextValue["importSocialPostMetrics"]>((metrics) => {
+    setState((current) => {
+      const normalized = metrics.map((metric) => normalizeSocialPostMetric(current.business.id, metric));
+      const socialPostMetrics = [...normalized, ...current.socialPostMetrics];
+      return {
+        ...current,
+        socialPostMetrics,
+        socialMetricSummary: summarizeSocialMetrics(socialPostMetrics)
+      };
+    });
+  }, []);
+
+  const recalculateSocialMetrics = useCallback(() => {
+    setState((current) => ({
+      ...current,
+      socialMetricSummary: summarizeSocialMetrics(current.socialPostMetrics)
+    }));
+  }, []);
+
   const runResearchAnalysis = useCallback(() => {
     setState((current) => {
+      const socialMetricSummary = summarizeSocialMetrics(current.socialPostMetrics);
       const activeCreators = current.competitorProfiles.filter((profile) => profile.isActive);
       const topCreator = [...activeCreators].sort(
         (a, b) =>
@@ -603,14 +645,36 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           id: makeId("insight"),
           businessId: current.business.id,
           source: "competitor",
-          title: topCreator ? `Formato fuerte detectado en ${topCreator.name}` : "Agrega creadores para detectar formatos fuertes",
-          summary: topCreator
+          title:
+            socialMetricSummary.formatoGanador !== "pendiente"
+              ? `Formato ganador: ${socialMetricSummary.formatoGanador}`
+              : topCreator
+                ? `Formato fuerte detectado en ${topCreator.name}`
+                : "Agrega creadores para detectar formatos fuertes",
+          summary:
+            socialMetricSummary.formatoGanador !== "pendiente"
+              ? `Piezas normalizadas: ${current.socialPostMetrics.length}. Likes promedio: ${socialMetricSummary.likesPromedio}. Comentarios promedio: ${socialMetricSummary.comentariosPromedio}. Hook dominante: ${socialMetricSummary.hookDominante}.`
+              : topCreator
             ? `${topCreator.metricsSnapshot.postsAnalyzed} piezas analizadas. Mejor formato: ${topCreator.metricsSnapshot.topFormat}. Hook dominante: ${topCreator.metricsSnapshot.topHook}.`
             : "Sin creadores activos todavia. El sistema necesita URLs de perfiles para comparar formatos, hooks y senales.",
           recommendation: topCreator
-            ? `Replica la logica, no la pieza: crea una version para ${current.business.niche} usando ${topCreator.metricsSnapshot.topFormat}, pregunta en comentario y CTA a ${current.captureCampaigns[0]?.trackedKeyword ?? "INFO"}.`
+            ? `Replica la logica, no la pieza: crea una version para ${current.business.niche} usando ${socialMetricSummary.formatoGanador !== "pendiente" ? socialMetricSummary.formatoGanador : topCreator.metricsSnapshot.topFormat}, pregunta en comentario y CTA a ${current.captureCampaigns[0]?.trackedKeyword ?? "INFO"}.`
             : "Carga al menos 3 perfiles: uno grande, uno mediano y uno de nicho local. Luego ejecuta analisis semanal.",
           confidence: topCreator ? 84 : 58,
+          createdAt: todayIso()
+        },
+        {
+          id: makeId("insight"),
+          businessId: current.business.id,
+          source: "internet",
+          title: "Formatos a vigilar",
+          summary: socialMetricSummary.formatosVigilar.length
+            ? `Crecimiento reciente detectado en: ${socialMetricSummary.formatosVigilar.join(", ")}.`
+            : "Aun faltan suficientes piezas recientes para detectar formatos emergentes.",
+          recommendation: socialMetricSummary.formatosVigilar.length
+            ? "Agenda una prueba pequena de cada formato emergente antes de convertirlo en pilar semanal."
+            : "Importa posts de los ultimos 30 dias desde perfiles referencia para activar esta alerta.",
+          confidence: socialMetricSummary.formatosVigilar.length ? 76 : 52,
           createdAt: todayIso()
         },
         {
@@ -643,6 +707,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
       return {
         ...current,
+        socialMetricSummary,
         researchInsights: [...insights, ...current.researchInsights].slice(0, 30)
       };
     });
@@ -850,6 +915,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       updateConnection,
       addCompetitorProfile,
       updateCompetitorProfile,
+      addSocialPostMetric,
+      importSocialPostMetrics,
+      recalculateSocialMetrics,
       runResearchAnalysis,
       updateCaptureCampaign,
       addBotScenario,
@@ -882,6 +950,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       updateConnection,
       addCompetitorProfile,
       updateCompetitorProfile,
+      addSocialPostMetric,
+      importSocialPostMetrics,
+      recalculateSocialMetrics,
       runResearchAnalysis,
       updateCaptureCampaign,
       addBotScenario,
