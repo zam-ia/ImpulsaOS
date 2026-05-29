@@ -32,6 +32,10 @@ type CreatorAccount = {
   profile_url: string;
   username?: string | null;
   handle?: string | null;
+  profile_title?: string | null;
+  profile_description?: string | null;
+  last_fetch_status?: string | null;
+  last_fetch_error?: string | null;
 };
 
 type AnalysisRun = {
@@ -99,6 +103,9 @@ type CreatorProfile = {
   dominant_hook?: string | null;
   opportunity_score?: number | null;
   last_analyzed_at?: string | null;
+  profile_summary?: string | null;
+  analysis_source?: string | null;
+  analysis_notes?: string | null;
   creator_accounts?: CreatorAccount[];
   analysis_runs?: AnalysisRun[];
   creator_posts?: CreatorPost[];
@@ -615,7 +622,7 @@ export default function AnalyticsPage() {
                   <tr key={creator.id} className="transition-colors hover:bg-paper/70">
                     <td className="px-4 py-4">
                       <p className="font-semibold text-ink">{creator.name}</p>
-                      <p className="text-xs text-ink/55">{creator.niche || creator.audience || "Datos estrategicos por calcular"}</p>
+                      <p className="text-xs text-ink/55">{creator.niche || creator.audience || creator.analysis_notes || "Datos estrategicos por calcular"}</p>
                     </td>
                     <td className="px-4 py-4 text-ink/65">{creator.type || "Pendiente"}</td>
                     <td className="px-4 py-4">
@@ -1020,10 +1027,21 @@ export default function AnalyticsPage() {
             <section className="rounded-3xl border border-ink/10 bg-paper p-4">
               <h3 className="font-semibold text-ink">Resumen estrategico</h3>
               <p className="mt-2 text-sm leading-6 text-ink/65">
-                {reportCreator.status === "requiere_revision_manual"
-                  ? "La cuenta necesita URLs o metricas visibles cargadas manualmente antes de detectar patrones confiables."
-                  : "El sistema detecta patrones desde publicaciones cargadas, calcula rendimiento y propone adaptaciones sin copiar contenido."}
+                {reportCreator.analysis_notes ||
+                  (reportCreator.status === "requiere_revision_manual"
+                    ? "La cuenta necesita URLs o metricas visibles cargadas manualmente antes de detectar patrones confiables."
+                    : "El sistema detecta patrones desde publicaciones cargadas o metadatos publicos, calcula rendimiento y propone adaptaciones sin copiar contenido.")}
               </p>
+              {reportCreator.profile_summary ? <p className="mt-3 rounded-2xl bg-[var(--color-surface)] p-3 text-sm leading-6 text-ink/70">{reportCreator.profile_summary}</p> : null}
+              <div className="mt-3 grid gap-2 md:grid-cols-3">
+                {(reportCreator.creator_accounts ?? []).map((account) => (
+                  <div key={account.id} className="rounded-2xl bg-[var(--color-surface)] p-3 text-sm">
+                    <p className="font-semibold text-ink">{account.platform}</p>
+                    <p className="mt-1 line-clamp-2 text-ink/60">{account.profile_title || account.profile_description || account.profile_url}</p>
+                    <p className="mt-2 text-xs text-ink/45">Lectura: {account.last_fetch_status || "pendiente"}</p>
+                  </div>
+                ))}
+              </div>
             </section>
             <section className="rounded-3xl border border-ink/10 bg-paper p-4">
               <h3 className="font-semibold text-ink">Posts detectados</h3>

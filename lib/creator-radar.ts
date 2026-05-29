@@ -33,6 +33,18 @@ export type CreateCreatorInput = CreatorAccountInput & {
   startAnalysis?: boolean;
 };
 
+type PublicPageMetadata = {
+  ok: boolean;
+  status: "ok" | "blocked" | "error";
+  url: string;
+  title: string;
+  description: string;
+  imageUrl: string | null;
+  postUrls: string[];
+  htmlText: string;
+  error?: string;
+};
+
 const statusProgress: Record<CreatorAnalysisStatus, number> = {
   guardado: 0,
   en_cola: 5,
@@ -118,8 +130,420 @@ function classifyCta(text: string) {
   return "Sin CTA claro";
 }
 
+function decodeHtml(value: string) {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getMetaContent(html: string, keys: string[]) {
+  for (const key of keys) {
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const patterns = [
+      new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']*)["'][^>]*>`, "i"),
+      new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']${escaped}["'][^>]*>`, "i")
+    ];
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match?.[1]) return decodeHtml(match[1]);
+    }
+  }
+  return "";
+}
+
+function getTitle(html: string) {
+  return decodeHtml(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.replace(/<[^>]+>/g, "") ?? "");
+}
+
+function absolutizeUrl(url: string, baseUrl: string) {
+  try {
+    return new URL(url, baseUrl).toString().split("?")[0];
+  } catch {
+    return "";
+  }
+}
+
+function extractPublicPostUrls(html: string, baseUrl: string, platform: CreatorPlatform) {
+  const values = new Set<string>();
+  const hrefPattern = /href=["']([^"']+)["']/gi;
+  const stringPattern = /https?:\\?\/\\?\/(?:www\.)?(?:instagram\.com|tiktok\.com|facebook\.com|fb\.watch)[^"'\\\s<>]+/gi;
+  const instagramPattern = /\/(?:p|reel|reels|tv)\/[A-Za-z0-9_-]+\/?/gi;
+  const tiktokPattern = /\/@[A-Za-z0-9_.-]+\/video\/\d+/gi;
+  const facebookPattern = /\/(?:posts|videos|reel|watch|photo.php|permalink.php)[^"'\\\s<>]*/gi;
+  const patterns = platform === "instagram" ? [instagramPattern] : platform === "tiktok" ? [tiktokPattern] : [facebookPattern];
+
+  for (const match of html.matchAll(hrefPattern)) {
+    const normalized = absolutizeUrl(decodeHtml(match[1]), baseUrl);
+    if (isPostUrl(normalized, platform)) values.add(normalized);
+  }
+  for (const match of html.matchAll(stringPattern)) {
+    const normalized = absolutizeUrl(decodeHtml(match[0].replace(/\\\//g, "/")), baseUrl);
+    if (isPostUrl(normalized, platform)) values.add(normalized);
+  }
+  for (const pattern of patterns) {
+    for (const match of html.matchAll(pattern)) {
+      const normalized = absolutizeUrl(match[0], baseUrl);
+      if (isPostUrl(normalized, platform)) values.add(normalized);
+    }
+  }
+
+  return [...values].slice(0, Number(process.env.PUBLIC_WEB_ANALYSIS_MAX_POSTS ?? 8));
+}
+
+function isPostUrl(url: string, platform: CreatorPlatform) {
+  if (!url) return false;
+  if (platform === "instagram") return /instagram\.com\/(?:p|reel|reels|tv)\//i.test(url);
+  if (platform === "tiktok") return /tiktok\.com\/@[^/]+\/video\/\d+/i.test(url);
+  return /(facebook\.com|fb\.watch)\/.*(posts|videos|reel|watch|photo\.php|permalink\.php)/i.test(url);
+}
+
+function derivePostType(url: string, text: string, platform: CreatorPlatform) {
+  const value = `${url} ${text}`.toLowerCase();
+  if (platform === "tiktok") return "tiktok";
+  if (value.includes("/reel/") || value.includes("/reels/")) return "reel";
+  if (value.includes("video")) return "video";
+  if (value.includes("carousel") || value.includes("checklist")) return "carrusel";
+  return platform === "instagram" ? "post instagram" : "post facebook";
+}
+
+function extractMetric(text: string, label: "like" | "comment" | "view") {
+  const normalized = text.toLowerCase().replace(/,/g, "");
+  const labels = {
+    like: "(?:likes?|me gusta)",
+    comment: "(?:comments?|comentarios?)",
+    view: "(?:views?|reproducciones?|visualizaciones?)"
+  };
+  const before = normalized.match(new RegExp(`(\\d+(?:\\.\\d+)?\\s*(?:k|m|mil)?)\\s+${labels[label]}`, "i"));
+  const after = normalized.match(new RegExp(`${labels[label]}\\s*:?\\s*(\\d+(?:\\.\\d+)?\\s*(?:k|m|mil)?)`, "i"));
+  return parseCompactNumber(before?.[1] ?? after?.[1] ?? "");
+}
+
+function parseCompactNumber(value: string) {
+  const cleaned = value.toLowerCase().trim();
+  if (!cleaned) return 0;
+  const amount = Number.parseFloat(cleaned.replace(/[^0-9.]/g, ""));
+  if (!Number.isFinite(amount)) return 0;
+  if (cleaned.includes("mil")) return Math.round(amount * 1000);
+  if (cleaned.includes("k")) return Math.round(amount * 1000);
+  if (cleaned.includes("m")) return Math.round(amount * 1000000);
+  return Math.round(amount);
+}
+
+function parseLooseJson(text: string) {
+  const cleaned = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      try {
+        return JSON.parse(cleaned.slice(start, end + 1));
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+}
+
+async function fetchPublicPage(url: string): Promise<PublicPageMetadata> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      redirect: "follow",
+      signal: controller.signal,
+      headers: {
+        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "accept-language": "es-PE,es;q=0.9,en;q=0.7",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36 ImpulsaOS/1.0"
+      }
+    });
+    const html = await response.text();
+    const blocked = response.status === 401 || response.status === 403 || /login|captcha|challenge|not allowed|temporarily blocked/i.test(html.slice(0, 5000));
+    const platform = detectPlatform(url);
+    const title = getMetaContent(html, ["og:title", "twitter:title"]) || getTitle(html);
+    const description = getMetaContent(html, ["og:description", "description", "twitter:description"]);
+    const imageUrl = getMetaContent(html, ["og:image", "twitter:image"]) || null;
+    return {
+      ok: response.ok && !blocked,
+      status: blocked ? "blocked" : response.ok ? "ok" : "error",
+      url: response.url || url,
+      title,
+      description,
+      imageUrl,
+      postUrls: platform ? extractPublicPostUrls(html, response.url || url, platform) : [],
+      htmlText: decodeHtml(`${title} ${description}`),
+      error: response.ok ? undefined : `HTTP ${response.status}`
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: "error",
+      url,
+      title: "",
+      description: "",
+      imageUrl: null,
+      postUrls: [],
+      htmlText: "",
+      error: error instanceof Error ? error.message : "No se pudo leer la pagina publica"
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function enrichCreatorFromPublicWeb(
+  supabase: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
+  creator: Record<string, any>,
+  businessId: string
+) {
+  const accounts = (creator.creator_accounts ?? []) as Array<Record<string, any>>;
+  const snapshots: Array<Record<string, unknown>> = [];
+  const rows: Array<Record<string, unknown>> = [];
+
+  for (const account of accounts) {
+    const platform = account.platform as CreatorPlatform;
+    const profile = await fetchPublicPage(account.profile_url);
+    snapshots.push({
+      account_id: account.id,
+      platform,
+      profile_url: account.profile_url,
+      status: profile.status,
+      title: profile.title,
+      description: profile.description,
+      posts_found: profile.postUrls.length,
+      error: profile.error
+    });
+
+    await supabase
+      .from("creator_accounts")
+      .update({
+        profile_title: profile.title || null,
+        profile_description: profile.description || null,
+        profile_image_url: profile.imageUrl,
+        last_fetch_status: profile.status,
+        last_fetch_error: profile.error ?? null,
+        last_analyzed_at: new Date().toISOString()
+      })
+      .eq("id", account.id);
+
+    for (const postUrl of profile.postUrls) {
+      const postMeta = await fetchPublicPage(postUrl);
+      const text = `${postMeta.title} ${postMeta.description}`;
+      const likes = extractMetric(text, "like");
+      const comments = extractMetric(text, "comment");
+      const views = extractMetric(text, "view");
+      rows.push({
+        business_id: businessId,
+        creator_id: creator.id,
+        account_id: account.id,
+        platform,
+        post_url: postUrl,
+        post_type: derivePostType(postUrl, text, platform),
+        published_at: null,
+        caption: postMeta.description || postMeta.title,
+        hook: (postMeta.description || postMeta.title).split(/[.!?\n]/)[0]?.slice(0, 220) ?? "",
+        hook_type: classifyHook(text),
+        topic: creator.niche || creator.type || "contenido competitivo",
+        format: classifyFormat(`${postUrl} ${text}`),
+        cta: classifyCta(text),
+        intention: text.toLowerCase().includes("whatsapp") ? "captacion de leads" : "educacion",
+        likes,
+        comments,
+        shares: 0,
+        saves: 0,
+        views,
+        hashtags: [...text.matchAll(/#[\p{L}\p{N}_]+/gu)].map((match) => match[0]).slice(0, 20),
+        thumbnail_url: postMeta.imageUrl,
+        duration_seconds: 0,
+        performance_score: scorePost({ likes, comments, views }),
+        source: "public_web",
+        raw_snapshot: {
+          title: postMeta.title,
+          description: postMeta.description,
+          fetch_status: postMeta.status
+        }
+      });
+    }
+  }
+
+  if (rows.length) {
+    await supabase.from("creator_posts").upsert(rows, { onConflict: "creator_id,post_url" });
+  }
+
+  const readableProfiles = snapshots
+    .map((snapshot) => `${snapshot.platform}: ${snapshot.title || snapshot.description || snapshot.status}`)
+    .filter(Boolean)
+    .join("\n");
+  await supabase
+    .from("creators")
+    .update({
+      profile_summary: readableProfiles || null,
+      profile_snapshot: { accounts: snapshots, web_posts_discovered: rows.length },
+      analysis_source: rows.length ? "public_web" : "public_profile",
+      analysis_notes: rows.length
+        ? "Se detectaron publicaciones desde HTML/metadatos publicos permitidos."
+        : "Se leyo el perfil, pero la red no expuso publicaciones en HTML publico. Agrega URLs de posts para metricas exactas."
+    })
+    .eq("id", creator.id);
+
+  return { snapshots, rowsCreated: rows.length, profileReadable: readableProfiles };
+}
+
+function apifyActorFor(platform: CreatorPlatform) {
+  if (platform === "instagram") return process.env.APIFY_INSTAGRAM_ACTOR_ID || "apify/instagram-scraper";
+  if (platform === "tiktok") return process.env.APIFY_TIKTOK_ACTOR_ID || "clockworks/tiktok-scraper";
+  return process.env.APIFY_FACEBOOK_ACTOR_ID || "";
+}
+
+function apifyInputFor(platform: CreatorPlatform, account: Record<string, any>) {
+  const limit = Number(process.env.PUBLIC_WEB_ANALYSIS_MAX_POSTS ?? 8);
+  if (platform === "instagram") {
+    return { directUrls: [account.profile_url], resultsType: "posts", resultsLimit: limit, addParentData: false };
+  }
+  if (platform === "tiktok") {
+    return { profiles: [account.handle || account.username || extractHandle(account.profile_url)], resultsPerPage: limit, shouldDownloadVideos: false };
+  }
+  return { startUrls: [{ url: account.profile_url }], maxPosts: limit, resultsLimit: limit };
+}
+
+function normalizeApifyPost(item: Record<string, any>, creator: Record<string, any>, account: Record<string, any>, businessId: string) {
+  const platform = account.platform as CreatorPlatform;
+  const url = String(item.url ?? item.postUrl ?? item.webVideoUrl ?? item.shareUrl ?? item.inputUrl ?? "");
+  if (!url) return null;
+  const caption = String(item.caption ?? item.text ?? item.description ?? item.title ?? "");
+  const likes = Number(item.likesCount ?? item.likes ?? item.diggCount ?? 0);
+  const comments = Number(item.commentsCount ?? item.comments ?? item.commentCount ?? 0);
+  const shares = Number(item.sharesCount ?? item.shares ?? item.shareCount ?? 0);
+  const saves = Number(item.savesCount ?? item.collectCount ?? item.bookmarks ?? 0);
+  const views = Number(item.videoViewCount ?? item.playCount ?? item.viewsCount ?? item.views ?? 0);
+  return {
+    business_id: businessId,
+    creator_id: creator.id,
+    account_id: account.id,
+    platform,
+    post_url: url,
+    post_type: String(item.type ?? derivePostType(url, caption, platform)),
+    published_at: item.timestamp ?? item.takenAt ?? item.createTimeISO ?? item.createTime ?? null,
+    caption,
+    hook: caption.split(/[.!?\n]/)[0]?.slice(0, 220) ?? "",
+    hook_type: classifyHook(caption),
+    topic: creator.niche || creator.type || "contenido competitivo",
+    format: classifyFormat(`${url} ${caption}`),
+    cta: classifyCta(caption),
+    intention: caption.toLowerCase().includes("whatsapp") ? "captacion de leads" : "educacion",
+    likes,
+    comments,
+    shares,
+    saves,
+    views,
+    hashtags: Array.isArray(item.hashtags) ? item.hashtags.slice(0, 20) : [...caption.matchAll(/#[\p{L}\p{N}_]+/gu)].map((match) => match[0]).slice(0, 20),
+    thumbnail_url: item.displayUrl ?? item.thumbnailUrl ?? item.coverUrl ?? null,
+    duration_seconds: Number(item.duration ?? item.videoDuration ?? 0),
+    performance_score: scorePost({ likes, comments, shares, saves, views }),
+    source: "apify",
+    raw_snapshot: item
+  };
+}
+
+async function enrichCreatorFromApify(
+  supabase: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
+  creator: Record<string, any>,
+  businessId: string
+) {
+  const token = process.env.APIFY_TOKEN;
+  if (!token) return { rowsCreated: 0, snapshots: [] as Array<Record<string, unknown>> };
+
+  const snapshots: Array<Record<string, unknown>> = [];
+  const rows: Array<Record<string, unknown>> = [];
+  for (const account of (creator.creator_accounts ?? []) as Array<Record<string, any>>) {
+    const platform = account.platform as CreatorPlatform;
+    const actorId = apifyActorFor(platform);
+    if (!actorId) {
+      snapshots.push({ platform, profile_url: account.profile_url, status: "missing_actor" });
+      continue;
+    }
+    const response = await fetch(`https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${token}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(apifyInputFor(platform, account))
+    }).catch(() => null);
+    if (!response?.ok) {
+      snapshots.push({ platform, profile_url: account.profile_url, status: "error", error: response?.status ?? "fetch_failed" });
+      continue;
+    }
+    const items = await response.json().catch(() => []);
+    const normalized: Array<Record<string, unknown>> = [];
+    if (Array.isArray(items)) {
+      for (const item of items) {
+        const normalizedPost = normalizeApifyPost(item, creator, account, businessId);
+        if (normalizedPost) normalized.push(normalizedPost);
+      }
+    }
+    rows.push(...normalized);
+    snapshots.push({ platform, profile_url: account.profile_url, status: "ok", posts_found: normalized.length, actor: actorId });
+  }
+
+  if (rows.length) await supabase.from("creator_posts").upsert(rows, { onConflict: "creator_id,post_url" });
+  if (snapshots.length) {
+    await supabase
+      .from("creators")
+      .update({
+        profile_snapshot: { apify: snapshots },
+        analysis_source: rows.length ? "apify" : "public_web",
+        analysis_notes: rows.length
+          ? "Se detectaron publicaciones mediante proveedor de navegacion configurado por API."
+          : "Proveedor de navegacion consultado, sin publicaciones disponibles."
+      })
+      .eq("id", creator.id);
+  }
+  return { rowsCreated: rows.length, snapshots };
+}
+
+async function callGeminiSearchForCreator(creator: Record<string, any>, profileSignals: Record<string, unknown>) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || process.env.GEMINI_ENABLE_SEARCH === "false") return null;
+
+  const model = process.env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash";
+  const accounts = (creator.creator_accounts ?? []).map((account: Record<string, unknown>) => ({
+    platform: account.platform,
+    url: account.profile_url,
+    handle: account.handle ?? account.username
+  }));
+  const prompt = `Analiza informacion publica indexada de estos perfiles sociales sin copiar contenido ni evadir login. Devuelve JSON estricto con: summary, discovered_posts[{url,title,platform,caption}], patterns[{title,description,why_it_works,adaptation_notes,opportunity_score}], adaptable_ideas[{idea_title,adapted_angle,suggested_hook,suggested_format,suggested_channel,recommended_objective,opportunity_score}], risks[], sources[]. Si no encuentras posts verificables, usa solo senales publicas y marca el analisis como preliminar. Perfil: ${JSON.stringify({ creator: { name: creator.name, type: creator.type, notes: creator.notes }, accounts, profileSignals }).slice(0, 10000)}`;
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      tools: [{ google_search: {} }],
+      generationConfig: { temperature: 0.35 }
+    })
+  }).catch(() => null);
+
+  if (!response?.ok) return null;
+  const data = await response.json().catch(() => null);
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const json = text ? parseLooseJson(text) : null;
+  const chunks = data?.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+  const sources = chunks
+    .map((chunk: Record<string, any>) => ({ title: chunk.web?.title, uri: chunk.web?.uri }))
+    .filter((source: { title?: string; uri?: string }) => source.uri);
+  return json ? { ...json, sources: json.sources ?? sources } : null;
+}
+
 async function callGeminiForCreator(input: {
   creator: Record<string, unknown>;
+  profileSignals?: Record<string, unknown>;
   posts: Array<Record<string, unknown>>;
   metrics: Record<string, unknown>;
 }) {
@@ -127,7 +551,7 @@ async function callGeminiForCreator(input: {
   const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
   if (!apiKey) return null;
 
-  const prompt = `Devuelve JSON estricto para analisis competitivo sin copiar contenido. Campos: summary, visual_recommendations, risks, opportunities, adaptable_ideas[3]. Datos: ${JSON.stringify(input).slice(0, 12000)}`;
+  const prompt = `Devuelve JSON estricto para analisis competitivo sin copiar contenido. Si hay pocos posts, usa señales del perfil como analisis preliminar y dilo claramente. Campos: summary, visual_recommendations, risks, opportunities, adaptable_ideas[3]. Datos: ${JSON.stringify(input).slice(0, 12000)}`;
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -235,7 +659,7 @@ export async function startCreatorAnalysis(creatorId: string, goalId?: string | 
       business_id: business.id,
       creator_id: creatorId,
       goal_id: goalId ?? null,
-      mode: "manual_assisted",
+      mode: "public_web_assisted",
       status: "en_cola",
       progress: 5,
       current_step: "Analisis en cola",
@@ -249,7 +673,48 @@ export async function startCreatorAnalysis(creatorId: string, goalId?: string | 
 
   try {
     await updateRun(run.id, "analizando_perfil", "Validando URLs y lectura de perfil");
-    await updateRun(run.id, "analizando_publicaciones", "Leyendo publicaciones cargadas o visibles");
+    const apifyScan = await enrichCreatorFromApify(supabase, creator, business.id);
+    const webScan = apifyScan.rowsCreated ? { snapshots: [], rowsCreated: 0, profileReadable: "" } : await enrichCreatorFromPublicWeb(supabase, creator, business.id);
+    await updateRun(
+      run.id,
+      "analizando_publicaciones",
+      apifyScan.rowsCreated || webScan.rowsCreated
+        ? `Se detectaron ${apifyScan.rowsCreated + webScan.rowsCreated} publicaciones; clasificando contenido`
+        : "No se expusieron publicaciones publicas; usando senales de perfil y posts cargados"
+    );
+    const searchScan = apifyScan.rowsCreated || webScan.rowsCreated ? null : await callGeminiSearchForCreator(creator, { apifyScan, webScan });
+    const searchPosts = Array.isArray(searchScan?.discovered_posts) ? searchScan.discovered_posts : [];
+    if (searchPosts.length) {
+      const accounts = (creator.creator_accounts ?? []) as Array<Record<string, any>>;
+      const rows = searchPosts
+        .map((post: Record<string, unknown>) => {
+          const url = String(post.url ?? "");
+          const platform = (detectPlatform(url) ?? post.platform ?? accounts[0]?.platform ?? "instagram") as CreatorPlatform;
+          if (!isPostUrl(url, platform)) return null;
+          const account = accounts.find((item) => item.platform === platform) ?? accounts[0];
+          const caption = String(post.caption ?? post.title ?? "");
+          return {
+            business_id: business.id,
+            creator_id: creatorId,
+            account_id: account?.id ?? null,
+            platform,
+            post_url: url,
+            post_type: derivePostType(url, caption, platform),
+            caption,
+            hook: caption.split(/[.!?\n]/)[0]?.slice(0, 220) ?? "",
+            hook_type: classifyHook(caption),
+            topic: creator.niche || creator.type || "contenido competitivo",
+            format: classifyFormat(`${url} ${caption}`),
+            cta: classifyCta(caption),
+            intention: caption.toLowerCase().includes("whatsapp") ? "captacion de leads" : "educacion",
+            performance_score: 0,
+            source: "gemini_search",
+            raw_snapshot: post
+          };
+        })
+        .filter(Boolean);
+      if (rows.length) await supabase.from("creator_posts").upsert(rows, { onConflict: "creator_id,post_url" });
+    }
     const { data: posts } = await supabase.from("creator_posts").select("*").eq("creator_id", creatorId);
     const normalizedPosts = (posts ?? []).map((post) => ({
       ...post,
@@ -276,18 +741,21 @@ export async function startCreatorAnalysis(creatorId: string, goalId?: string | 
     const postsAnalyzed = postsAfter.length;
     const avgLikes = postsAnalyzed ? Math.round(postsAfter.reduce((sum, post) => sum + (post.likes ?? 0), 0) / postsAnalyzed) : 0;
     const avgComments = postsAnalyzed ? Math.round(postsAfter.reduce((sum, post) => sum + (post.comments ?? 0), 0) / postsAnalyzed) : 0;
-    const winningFormat = dominant(postsAfter.map((post) => post.format || classifyFormat(`${post.post_type ?? ""} ${post.caption ?? ""}`)), postsAnalyzed ? "Reel educativo" : "pendiente");
-    const dominantHook = dominant(postsAfter.map((post) => post.hook_type || classifyHook(`${post.hook ?? ""} ${post.caption ?? ""}`)), postsAnalyzed ? "gancho de curiosidad" : "pendiente");
-    const opportunityScore = postsAnalyzed ? Math.min(95, Math.round(avgComments * 1.2 + avgLikes * 0.05 + 62)) : 48;
-    const finalStatus: CreatorAnalysisStatus = postsAnalyzed ? "analisis_completado" : "requiere_revision_manual";
+    const profileText = `${creator.name ?? ""} ${creator.type ?? ""} ${webScan.profileReadable ?? ""}`;
+    const winningFormat = dominant(postsAfter.map((post) => post.format || classifyFormat(`${post.post_type ?? ""} ${post.caption ?? ""}`)), postsAnalyzed ? "Reel educativo" : classifyFormat(profileText));
+    const dominantHook = dominant(postsAfter.map((post) => post.hook_type || classifyHook(`${post.hook ?? ""} ${post.caption ?? ""}`)), classifyHook(profileText));
+    const opportunityScore = postsAnalyzed ? Math.min(95, Math.round(avgComments * 1.2 + avgLikes * 0.05 + 62)) : webScan.profileReadable ? 62 : 38;
+    const finalStatus: CreatorAnalysisStatus = postsAnalyzed || webScan.profileReadable ? "analisis_completado" : "requiere_revision_manual";
 
     await updateRun(run.id, "generando_insights", "Generando patrones y recomendaciones");
     const gemini = await callGeminiForCreator({
       creator,
+      profileSignals: { apifyScan, webScan, searchScan },
       posts: postsAfter,
       metrics: { postsAnalyzed, avgLikes, avgComments, winningFormat, dominantHook, opportunityScore }
     });
-    const patternTitle = postsAnalyzed ? `${winningFormat} con ${dominantHook}` : "Carga manual requerida para detectar patrones reales";
+    const intelligence = gemini ?? searchScan;
+    const patternTitle = postsAnalyzed ? `${winningFormat} con ${dominantHook}` : `Patron preliminar: ${winningFormat} con ${dominantHook}`;
     const { data: pattern } = await supabase
       .from("content_patterns")
       .insert({
@@ -295,20 +763,20 @@ export async function startCreatorAnalysis(creatorId: string, goalId?: string | 
         creator_id: creatorId,
         analysis_run_id: run.id,
         platform: creator.creator_accounts?.[0]?.platform ?? null,
-        pattern_type: postsAnalyzed ? "winning_format" : "manual_needed",
+        pattern_type: postsAnalyzed ? "winning_format" : "profile_signal",
         title: patternTitle,
-        description: gemini?.summary ?? (postsAnalyzed ? "Patron detectado desde publicaciones cargadas." : "No hay publicaciones cargadas suficientes; usar carga manual asistida."),
+        description: intelligence?.summary ?? (postsAnalyzed ? "Patron detectado desde publicaciones cargadas o visibles publicamente." : "Patron preliminar detectado desde bio, titulo y metadatos publicos del perfil."),
         evidence_posts: postsAfter.slice(0, 5).map((post) => post.id),
-        why_it_works: String(gemini?.opportunities?.[0] ?? "Reduce esfuerzo de consumo y permite adaptar el aprendizaje sin copiar piezas."),
+        why_it_works: String(intelligence?.opportunities?.[0] ?? intelligence?.patterns?.[0]?.why_it_works ?? "Reduce esfuerzo de consumo y permite adaptar el aprendizaje sin copiar piezas."),
         risk_of_copying: postsAnalyzed ? "medium" : "low",
         opportunity_score: opportunityScore,
-        adaptation_notes: String(gemini?.visual_recommendations ?? "Adaptar al tono, publico y meta activa antes de generar contenido.")
+        adaptation_notes: String(intelligence?.visual_recommendations ?? intelligence?.patterns?.[0]?.adaptation_notes ?? "Adaptar al tono, publico y meta activa antes de generar contenido.")
       })
       .select("*")
       .single();
 
     await updateRun(run.id, "generando_ideas_adaptables", "Creando ideas adaptables para el motor");
-    const ideaRows = (gemini?.adaptable_ideas?.length ? gemini.adaptable_ideas : [
+    const ideaRows = (intelligence?.adaptable_ideas?.length ? intelligence.adaptable_ideas : [
       { idea_title: "3 errores al elegir una capacitacion en salud", adapted_angle: "Errores comunes con CTA de guardado", suggested_hook: "Si trabaja en salud y elige cursos solo por precio, esto le puede salir caro." },
       { idea_title: "Que no te pase: esperar el ultimo momento para capacitarte", adapted_angle: "Identificacion profesional", suggested_hook: "Si recien busca capacitarse cuando ya le piden el certificado, esto es para usted." },
       { idea_title: "Checklist para elegir un diplomado sin perder tiempo", adapted_angle: "Carrusel guardable", suggested_hook: "Guarde esto antes de inscribirse a cualquier diplomado." }
@@ -332,6 +800,21 @@ export async function startCreatorAnalysis(creatorId: string, goalId?: string | 
       }))
     );
 
+    if (searchScan?.sources?.length) {
+      await supabase
+        .from("creators")
+        .update({
+          profile_snapshot: {
+            ...(creator.profile_snapshot ?? {}),
+            apify: apifyScan.snapshots,
+            accounts: webScan.snapshots,
+            web_posts_discovered: webScan.rowsCreated,
+            gemini_search_sources: searchScan.sources
+          }
+        })
+        .eq("id", creatorId);
+    }
+
     await supabase
       .from("creators")
       .update({
@@ -346,7 +829,15 @@ export async function startCreatorAnalysis(creatorId: string, goalId?: string | 
       })
       .eq("id", creatorId);
 
-    await updateRun(run.id, finalStatus, postsAnalyzed ? "Analisis completado" : "Requiere carga manual de publicaciones visibles");
+    await updateRun(
+      run.id,
+      finalStatus,
+      postsAnalyzed
+        ? "Analisis completado con publicaciones detectadas"
+        : webScan.profileReadable
+          ? "Analisis preliminar completado; agrega URLs de posts para metricas exactas"
+          : "Requiere carga manual de publicaciones visibles"
+    );
     return { ok: true, runId: run.id, status: finalStatus };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error desconocido";
